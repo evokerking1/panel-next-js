@@ -23,8 +23,9 @@ To get started with the app, follow these steps:
 3. Install dependencies: `npm install`
 
 ### Running the App
-1. Start the development server: `npm run dev`
-2. Open your browser and navigate to `http://localhost:3000` to view the app.
+1. Seed the database: `npm run seed`
+2. Start the development server: `npm run dev`
+3. Open your browser and navigate to `http://localhost:3000` to view the app.
 
 ### Building for Production
 1. Build the project: `npm run build`
