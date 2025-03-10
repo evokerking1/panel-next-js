@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader } from "@/components/shadcn/card"
 import { Progress } from "@/components/shadcn/progress"
 import { Badge } from "@/components/shadcn/badge"
 import type { Server } from "@/lib/utils"
+import { useRouter, usePathname } from "next/navigation";
 
 interface ServerCardProps {
   server: Server
@@ -44,6 +45,7 @@ const getStatusIcon = (status: "Online" | "Starting" | "Stopped") => {
 }
 
 const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
+  const router = useRouter();
   const memoryUsage =
     server.status === "Stopped"
       ? 0
@@ -57,7 +59,7 @@ const ServerCard: React.FC<ServerCardProps> = ({ server }) => {
   const cpuUsage = server.status === "Stopped" ? 0 : Number.parseFloat(server.cpuUsage)
 
   return (
-    <a href={`/server/${server.uuid}/console`} className="block w-full">
+    <a onClick={() => router.push(`/server/${server.uuid}/`)} className="block w-full">
       <Card className="w-full text-card-foreground border-border hover:-translate-y-1 transition-all duration-300 group relative overflow-hidden bg-gradient-to-br from-card to-card/95">
         <div className="transition-all duration-300 group-hover:blur-[2px]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">

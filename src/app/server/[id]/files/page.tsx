@@ -1,11 +1,10 @@
 "use client";
 
-import { motion, AnimatePresence } from "framer-motion";
 import { cn, Server } from "@/lib/utils";
 import Header from "@/components/airlink/Header";
-import LoadingScreen from "@/components/airlink/LoadingScreen";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/utils/authenticated";
+import Sidebar from "@/components/airlink/Sidebar";
 import ServerSidebar from "@/components/airlink/ServerSidebar";
 import { useState, useEffect } from "react"
 import { useParams } from "next/navigation"
@@ -111,9 +110,15 @@ const FileExplorer: React.FC = () => {
         { name: "server-icon.png", type: "image", size: 4096, modified: "2023-05-11", path: "/" }
     ]
 
-    const filteredFiles = mockFiles.filter(
-        (file) => file.path === currentPath && file.name.toLowerCase().includes(searchQuery.toLowerCase()),
+    const filteredFiles = mockFiles
+    .filter(
+        (file) => file.path === currentPath && file.name.toLowerCase().includes(searchQuery.toLowerCase())
     )
+    .sort((a, b) => {
+        if (a.type === 'folder' && b.type !== 'folder') return -1;
+        if (a.type !== 'folder' && b.type === 'folder') return 1;
+        return a.name.localeCompare(b.name);
+    });
 
     const getFileIcon = (type: FileType) => {
         switch (type) {
@@ -167,23 +172,17 @@ const FileExplorer: React.FC = () => {
 
     return (
         <div className="min-h-screen dark bg-background text-foreground">
-            <LoadingScreen loading={loading} />
-            <AnimatePresence>
-                {!loading && (
-                    <motion.div
-                        initial={{ opacity: 0, filter: "blur(5px)" }}
-                        animate={{ opacity: 1, filter: "blur(0px)" }}
-                        exit={{ opacity: 0, filter: "blur(5px)" }}
-                        transition={{ duration: 0.5 }}
-                    >
                         <Header isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-                        <ServerSidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
+                        <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
                         <main className={cn("pt-14 transition-all duration-300 ease-in-out", isSidebarOpen ? "pl-60" : "pl-0")}>
                             <div className="p-6 sm:p-4 md:p-6">
                                 <div className="mb-6">
                                     <h1 className="text-2xl font-semibold">File Manager</h1>
                                     <p className="text-muted-foreground">Browse and manage server files.</p>
                                 </div>
+
+                                <ServerSidebar/>
+
                                 <Card className="h-full flex flex-col">
                                     {/* <CardHeader className="pb-2">
                                             <CardTitle>File Manager</CardTitle>
@@ -301,9 +300,6 @@ const FileExplorer: React.FC = () => {
                                 </Card>
                             </div>
                         </main>
-                    </motion.div>
-                )}
-            </AnimatePresence>
         </div>
     );
 };

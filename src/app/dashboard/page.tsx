@@ -1,12 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/shadcn/button";
 import { cn, Server } from "@/lib/utils";
 import Header from "@/components/airlink/Header";
 import Sidebar from "@/components/airlink/Sidebar";
-import LoadingScreen from "@/components/airlink/LoadingScreen";
 import ServerCard from "@/components/airlink/dashboard/ServerCard";
 import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/utils/authenticated";
@@ -60,15 +58,6 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen dark bg-background text-foreground">
-      <LoadingScreen loading={loading} />
-      <AnimatePresence>
-        {!loading && (
-          <motion.div
-            initial={{ opacity: 0, filter: "blur(5px)" }}
-            animate={{ opacity: 1, filter: "blur(0px)" }}
-            exit={{ opacity: 0, filter: "blur(5px)" }}
-            transition={{ duration: 0.5 }}
-          >
             <Header isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
             <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
             <main className={cn("pt-14 transition-all duration-300 ease-in-out", isSidebarOpen ? "pl-60" : "pl-0")}>
@@ -104,9 +93,6 @@ const Dashboard: React.FC = () => {
                 )}
               </div>
             </main>
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 };
