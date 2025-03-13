@@ -58,8 +58,6 @@ const BackupPage: React.FC = () => {
               <div className="flex justify-between items-center p-4 border-b">
                 <div>
                   {/** Here we can put other components if needed */}
-                </div>
-                <div className="flex space-x-2">
                   <div className="relative w-full sm:w-[250px]">
                     <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -70,6 +68,9 @@ const BackupPage: React.FC = () => {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
+                </div>
+                <div className="flex space-x-2">
+
                   <Button variant="outline" size="icon">
                     <RefreshCcw className="h-4 w-4" />
                   </Button>
