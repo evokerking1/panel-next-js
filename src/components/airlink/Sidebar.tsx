@@ -108,7 +108,10 @@ const Sidebar: FC<SidebarProps> = ({ isSidebarOpen, setIsSidebarOpen }) => {
               <Users className="mr-2 h-4 w-4" />
               Users
             </Button>
-            <Button variant="ghost" className="w-full justify-start text-foreground">
+            <Button
+            variant={isActive('/admin/nodes') ? "secondary" : "ghost"} 
+            className="w-full justify-start"
+            onClick={() => router.push('/admin/nodes')}>
             <Computer className="mr-2 h-4 w-4" />
               Nodes
             </Button>
