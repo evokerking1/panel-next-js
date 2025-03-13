@@ -12,6 +12,20 @@ export interface Server {
   diskUsage: string;
   status: 'Online' | 'Starting' | 'Stopped';
 }
+
+export interface Node {
+  name: string;
+  uuid: string;
+  ram: string;
+  cpu: string;
+  disk: string;
+  address: string;
+  port: string;
+  key: string;
+  status: 'Online' | 'Starting' | 'Stopped' | 'Unkown';
+  version: string;
+}
+
 export function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return "0 Bytes"
 

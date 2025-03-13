@@ -93,7 +93,7 @@ body {
   height: 50px; /* Reduced from 70.4px */
   --clr: hsl(240 5.9% 90%); /* Light color from zinc theme */
   --clr-alpha: hsl(240 5.9% 90% / 0.1); /* Transparent version of the light color */
-  animation: spinner 1.6s infinite ease;
+  animation: spinner 2.6s infinite ease;
   transform-style: preserve-3d;
 }
 
