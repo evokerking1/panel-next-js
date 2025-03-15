@@ -41,7 +41,7 @@ const NodeCreate: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch("/api/admins/nodes/create", {
+      const response = await fetch("/api/admin/nodes/create", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
