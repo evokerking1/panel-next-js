@@ -1,5 +1,7 @@
 # Airlink Panel
 
+## 🚨 THIS PROJECT HAS NOT BEEN UPDATED TO SUPPORT THE NEWEST API YET, I will update this to the new api
+
 ## Description
 This is a **Airlink Panel** built using **Next.js**. The app is designed to efficiently manage game servers, providing an intuitive and user-friendly interface.
 
