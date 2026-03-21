@@ -1,35 +1,49 @@
-# Airlink Panel
+# AirLink — Next.js
 
-## 🚨 THIS PROJECT HAS NOT BEEN UPDATED TO SUPPORT THE NEWEST API YET, I will update this to the new api
+This is the Next.js port of the AirLink game server management panel.
 
-## Description
-This is a **Airlink Panel** built using **Next.js**. The app is designed to efficiently manage game servers, providing an intuitive and user-friendly interface.
+## Setup
 
-**Please note that Airlink Panel is still under development.**
+```bash
+cp example.env .env
+# Edit .env with your database URL and session secret
 
-## Contributing
-We welcome contributions from the community! If you'd like to contribute, please follow the steps below:
-1. Fork this repository.
-2. Create a new branch (`git checkout -b feature/YourFeature`).
-3. Make your changes.
-4. Commit your changes (`git commit -m 'Add new feature'`).
-5. Push to the branch (`git push origin feature/YourFeature`).
-6. Create a Pull Request.
+npm install
+npm run dev
+```
 
-## How to Use
-To get started with the app, follow these steps:
+## Architecture
 
-### Installation
-1. Clone the repository: `git clone https://github.com/airlinklabs/panel-next-js`
-2. Navigate to the project directory: `cd panel-next-js`
-3. Install dependencies: `npm install`
+- **Framework**: Next.js 15 App Router
+- **Database**: Prisma + SQLite (same schema as original)
+- **Auth**: iron-session (replaces express-session)
+- **WebSockets**: Custom server (`server.ts`) — Next.js doesn't support WebSockets natively, so we attach a `ws.Server` to the same HTTP server that Next.js uses.
+- **Styling**: Tailwind CSS (same design system as original)
 
-### Running the App
-1. Seed the database: `npm run seed`
-2. Start the development server: `npm run dev`
-3. Open your browser and navigate to `http://localhost:3000` to view the app.
+## Key differences from the Express version
 
-### Building for Production
-1. Build the project: `npm run build`
-2. Start the production server: `npm start`
-3. Your app will be running on `http://localhost:3000`.
+| Express | Next.js |
+|---|---|
+| `express-session` | `iron-session` (cookie-based, no DB store needed) |
+| EJS templates | React Server Components + Client Components |
+| `express-ws` | Custom server with `ws` package |
+| CSRF via `csurf` | Built-in — Next.js Server Actions use CSRF-safe POST |
+| Module loader | Next.js App Router (file-based routing) |
+| Mobile/desktop EJS split | Responsive CSS (one codebase) |
+
+## WebSocket endpoints
+
+- `ws://host/ws/console/:serverUUID` — proxies console to daemon
+- `ws://host/ws/stats/:serverUUID` — proxies stats stream to daemon  
+- `ws://host/ws/online-check` — tracks online users
+
+## Addon system
+
+Addons that registered Express routes will need updating. The addon API surface in `src/lib/addonHandler.ts` exposes `registerRoute` which can be called at server startup via `server.ts`. Addon views (EJS) are not supported — addons need React components.
+
+## Production
+
+```bash
+npm run build
+npm start
+```

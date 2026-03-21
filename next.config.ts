@@ -1,7 +1,13 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const config: NextConfig = {
+  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
+  experimental: {
+    serverActions: {
+      allowedOrigins: ['*'],
+      bodySizeLimit: '100mb',
+    },
+  },
 };
 
-export default nextConfig;
+export default config;

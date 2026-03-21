@@ -1,15 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { getIronSession } from 'iron-session';
+import { sessionOptions, type SessionData } from '@/lib/session';
 
-export async function POST() {
-  try {
-    return NextResponse.json(
-      { message: 'Logout successful' },
-      { status: 200 }
-    );
-  } catch (error) {
-    return NextResponse.json(
-      { error: 'An error occurred during logout' },
-      { status: 500 }
-    );
-  }
-} 
+async function handleLogout(req: NextRequest) {
+  const response = NextResponse.redirect(new URL('/login', req.url), 303);
+  const session = await getIronSession<SessionData>(req, response, sessionOptions);
+  session.destroy();
+  return response;
+}
+
+export { handleLogout as GET, handleLogout as POST };

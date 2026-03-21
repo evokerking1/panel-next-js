@@ -1,0 +1,11 @@
+
+> airlink@2.0.0-rc1 start
+> npx prisma db push --skip-generate && npx ts-node server.ts
+
+Environment variables loaded from .env
+Prisma schema loaded from prisma/schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+The database is already in sync with the Prisma schema.
+
+sh: 1: ts-node: Permission denied
