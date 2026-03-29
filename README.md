@@ -1,35 +1,43 @@
-# Airlink Panel
 
-## 🚨 THIS PROJECT HAS NOT BEEN UPDATED TO SUPPORT THE NEWEST API YET, I will update this to the new api
+# DO NOT USE THIS THIS IS STILL IN VERY VERY VERY EARLY DEVELOPMENT ITS NOT EVEN READY FOR TESTING ALL THE UI AND EVERYTHING IS BROKEN AND NOT DONE SO PLEASE DON'T USE
 
-## Description
-This is a **Airlink Panel** built using **Next.js**. The app is designed to efficiently manage game servers, providing an intuitive and user-friendly interface.
+# Airlink Panel — Next.js
 
-**Please note that Airlink Panel is still under development.**
+A one-to-one port of the Airlink Panel from Express to Next.js 15 / React 19.
 
-## Contributing
-We welcome contributions from the community! If you'd like to contribute, please follow the steps below:
-1. Fork this repository.
-2. Create a new branch (`git checkout -b feature/YourFeature`).
-3. Make your changes.
-4. Commit your changes (`git commit -m 'Add new feature'`).
-5. Push to the branch (`git push origin feature/YourFeature`).
-6. Create a Pull Request.
+## Setup
 
-## How to Use
-To get started with the app, follow these steps:
+```bash
+# 1. Install dependencies
+npm install
 
-### Installation
-1. Clone the repository: `git clone https://github.com/airlinklabs/panel-next-js`
-2. Navigate to the project directory: `cd panel-next-js`
-3. Install dependencies: `npm install`
+# 2. Copy env file and set values
+cp .env.example .env
+# Edit .env — set SESSION_SECRET to a random 32+ char string
 
-### Running the App
-1. Seed the database: `npm run seed`
-2. Start the development server: `npm run dev`
-3. Open your browser and navigate to `http://localhost:3000` to view the app.
+# 3. Push the database schema
+npm run db:setup
 
-### Building for Production
-1. Build the project: `npm run build`
-2. Start the production server: `npm start`
-3. Your app will be running on `http://localhost:3000`.
+# 4. Start in dev mode
+npm run dev
+
+# 5. Visit http://localhost:3000 — you will be redirected to /register to create the first admin account
+```
+
+## Production
+
+```bash
+npm run build
+npm start
+```
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | SQLite path, e.g. `file:./prisma/dev.db` |
+| `SESSION_SECRET` | At least 32 chars, keep private |
+| `NODE_ENV` | `development` or `production` |
+| `ENFORCE_DAEMON_HTTPS` | Set to `true` to use HTTPS/WSS for daemon connections |
+| `HOST` | Bind address (default `0.0.0.0`) |
+| `PORT` | Port (default `3000`) |

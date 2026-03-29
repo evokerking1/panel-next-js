@@ -1,13 +1,14 @@
 {
-  "name": "airlink-panel",
-  "version": "0.1.0",
-  "private": true,
+  "name": "airlink-panel-nextjs",
+  "version": "0.0.2",
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "tsx server.ts",
     "build": "next build",
-    "start": "next start",
-    "lint": "next lint",
-    "seed": "node prisma/seed.js"
+    "start": "NODE_ENV=production tsx server.ts",
+    "db:setup": "sqlite3 prisma/dev.db < prisma/migrations/20260329135303_idk/migration.sql && prisma generate",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",

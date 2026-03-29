@@ -1,242 +1,155 @@
-"use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
-import { Label } from "@/components/shadcn/label";
-import { Input } from "@/components/shadcn/input";
-import { Button } from "@/components/shadcn/button";
-import { Textarea } from "@/components/shadcn/textarea";
-import { useAuth } from "@/lib/auth";
-import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
-import Header from "@/components/airlink/Header";
-import Sidebar from "@/components/airlink/Sidebar";
-import { isAuthenticated } from "@/lib/utils/authenticated";
+'use client'
 
-export default function Account() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const user = useAuth((state: any) => state.user);
-  const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    username: "",
-    email: "",
-    description: "",
-    currentPassword: "",
-    newPassword: "",
-  });
-  const [passwordValidation, setPasswordValidation] = useState({
-    isValid: false,
-    message: "Checking...",
-  });
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
-  const [loading, setLoading] = useState(true);
+import { useState, useEffect } from 'react'
+import PanelLayout from '@/components/layout/PanelLayout'
+import { useToastContext } from '@/components/layout/PanelLayout'
+import { useAuth } from '@/hooks/useAuth'
+
+interface LoginEntry { id: number; ipAddress?: string; userAgent?: string; timestamp: string }
+interface FullUser { id: number; email: string; username: string; description?: string; isAdmin: boolean; loginHistory: LoginEntry[] }
+
+export default function AccountPage() {
+  const { user } = useAuth({ require: true })
+  const { showToast } = useToastContext()
+  const [fullUser, setFullUser] = useState<FullUser | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ username: '', description: '', email: '', currentPassword: '', newPassword: '' })
 
   useEffect(() => {
-    if (user) {
-      setFormData({
-        ...formData,
-        username: user.username || "",
-        email: user.email || "",
-        description: user.description || "",
-      });
-    }
-  }, [user]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setLoading(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/auth/login");
-    }
-  }, []);
-
-  const validateCurrentPassword = async (password: string) => {
-    try {
-      const res = await fetch("/api/auth/validate-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: user?.id, password }),
-      });
-      const data = await res.json();
-      setPasswordValidation({
-        isValid: data.valid,
-        message: data.valid ? "Password is correct" : "Password is incorrect",
-      });
-      return data.valid;
-    } catch (error) {
-      setPasswordValidation({
-        isValid: false,
-        message: "Error validating password",
-      });
-      return false;
-    }
-  };
-
-  const handleSubmit = async (type: string) => {
-    setIsLoading(true);
-    try {
-      let endpoint = `/api/auth/update-${type}`;
-      let payload = {};
-
-      switch (type) {
-        case "profile":
-          payload = {
-            username: formData.username,
-            email: formData.email,
-            description: formData.description,
-          };
-          break;
-        case "password":
-          if (!passwordValidation.isValid) {
-            toast({
-              title: "Error",
-              description: "Current password is incorrect",
-              variant: "destructive",
-            });
-            return;
-          }
-          payload = {
-            email: user.email,
-            currentPassword: formData.currentPassword,
-            newPassword: formData.newPassword,
-          };
-          break;
+    if (!user) return
+    fetch('/api/user/account').then(r => r.json()).then(d => {
+      if (d.user) {
+        setFullUser(d.user)
+        setForm(f => ({ ...f, username: d.user.username || '', description: d.user.description || '', email: d.user.email }))
       }
+    }).catch(() => {})
+  }, [user])
 
-      const res = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        toast({
-          title: "Success",
-          description: `${type.charAt(0).toUpperCase() + type.slice(1)} updated successfully`,
-        });
-        if (type === "password") {
-          router.push("/auth/login");
-        } else {
-          useAuth.getState().setUser(data.user);
-        }
-      } else {
-        throw new Error(data.error);
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "An error occurred",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
+  async function save(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user) return
+    setSaving(true)
+    const payload: Record<string, string> = {
+      username: form.username,
+      description: form.description,
+      email: form.email,
     }
-  };
+    if (form.newPassword) {
+      payload.newPassword = form.newPassword
+      payload.currentPassword = form.currentPassword
+    }
+    const res = await fetch('/api/user/account', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const d = await res.json()
+    if (res.ok) {
+      showToast('Profile updated.', 'success')
+      setForm(f => ({ ...f, currentPassword: '', newPassword: '' }))
+    } else {
+      showToast(d.error || 'Failed to update.', 'error')
+    }
+    setSaving(false)
+  }
+
+  const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+
+  if (!fullUser) return (
+    <PanelLayout>
+      <div className="flex items-center justify-center h-64">
+        <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    </PanelLayout>
+  )
 
   return (
-    <div className="min-h-screen dark bg-background text-foreground">
-            <Header isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-            <Sidebar isSidebarOpen={isSidebarOpen} setIsSidebarOpen={setIsSidebarOpen} />
-            <main className={cn("pt-14 transition-all duration-300 ease-in-out", isSidebarOpen ? "pl-60" : "pl-0")}>
-              <div className="p-6 sm:p-4 md:p-6">
-                <div className="mb-8">
-                  <h1 className="text-2xl font-semibold">Account Settings</h1>
-                  <p className="text-muted-foreground">Manage your account information</p>
+    <PanelLayout>
+      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
+        <div className="mb-6">
+          <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
+          <p className="text-sm text-neutral-500 mt-0.5">Manage your profile and security</p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">Profile</h2>
+            <form onSubmit={save} className="space-y-4">
+              <div className="flex items-center gap-4 mb-4">
+                <img
+                  src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(fullUser.username)}`}
+                  className="h-16 w-16 rounded-2xl border border-neutral-200 dark:border-white/10"
+                  alt=""
+                />
+                <div>
+                  <p className="text-sm font-medium text-neutral-800 dark:text-white">{fullUser.username}</p>
+                  <p className="text-xs text-neutral-500">{fullUser.email}</p>
+                  {fullUser.isAdmin && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 mt-1 inline-block">
+                      Admin
+                    </span>
+                  )}
                 </div>
+              </div>
 
-                <div className="grid gap-6">
-                  <div className="border rounded-xl p-6">
-                    <h2 className="text-xl font-medium mb-4">Profile Information</h2>
-                    <div className="grid gap-4">
-                      <div>
-                        <Label htmlFor="username">Username</Label>
-                        <Input
-                          id="username"
-                          value={formData.username}
-                          onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                          placeholder="Enter username"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                          id="email"
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                          placeholder="Enter email"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea
-                          id="description"
-                          value={formData.description}
-                          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          placeholder="Enter description"
-                        />
-                      </div>
-                      <Button
-                        onClick={() => handleSubmit("profile")}
-                        disabled={isLoading}
-                      >
-                        {isLoading ? <LoaderCircle className="animate-spin mr-2" /> : null}
-                        Update Profile
-                      </Button>
-                    </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">Username</label>
+                <input className={inputClass} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">Email</label>
+                <input className={inputClass} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs text-neutral-500 mb-1">About</label>
+                <input className={inputClass} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="No about me" />
+              </div>
+
+              <div className="pt-2 border-t border-neutral-100 dark:border-white/5">
+                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-3">Change password</p>
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">Current password</label>
+                    <input className={inputClass} type="password" value={form.currentPassword} onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="••••••••" />
                   </div>
-
-                  <div className="border rounded-xl p-6">
-                    <h2 className="text-xl font-medium mb-4">Change Password</h2>
-                    <div className="grid gap-4">
-                      <div>
-                        <Label htmlFor="currentPassword">Current Password</Label>
-                        <Input
-                          id="currentPassword"
-                          type="password"
-                          value={formData.currentPassword}
-                          onChange={async (e) => {
-                            const value = e.target.value;
-                            setFormData({ ...formData, currentPassword: value });
-                            if (value) await validateCurrentPassword(value);
-                          }}
-                          placeholder="Enter current password"
-                        />
-                        <p className={`text-sm mt-1 ${passwordValidation.isValid ? "text-green-500" : "text-red-500"}`}>
-                          {passwordValidation.message}
-                        </p>
-                      </div>
-                      <div>
-                        <Label htmlFor="newPassword">New Password</Label>
-                        <Input
-                          id="newPassword"
-                          type="password"
-                          value={formData.newPassword}
-                          onChange={(e) => setFormData({ ...formData, newPassword: e.target.value })}
-                          placeholder="Enter new password"
-                          disabled={!passwordValidation.isValid}
-                        />
-                      </div>
-                      <Button
-                        onClick={() => handleSubmit("password")}
-                        disabled={isLoading || !passwordValidation.isValid}
-                      >
-                        {isLoading ? <LoaderCircle className="animate-spin mr-2" /> : null}
-                        Update Password
-                      </Button>
-                    </div>
+                  <div>
+                    <label className="block text-xs text-neutral-500 mb-1">New password <span className="text-neutral-400">(leave blank to keep)</span></label>
+                    <input className={inputClass} type="password" value={form.newPassword} onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="••••••••" />
                   </div>
                 </div>
               </div>
-            </main>
-    </div>
-  );
-} 
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="px-5 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition"
+              >
+                {saving ? 'Saving...' : 'Save changes'}
+              </button>
+            </form>
+          </div>
+
+          <div>
+            <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">Login history</h2>
+            <div className="space-y-2">
+              {fullUser.loginHistory.length === 0
+                ? <p className="text-sm text-neutral-400">No login history.</p>
+                : fullUser.loginHistory.map(entry => (
+                  <div key={entry.id} className="rounded-lg border border-neutral-200 dark:border-white/5 px-3 py-2.5 bg-neutral-50 dark:bg-neutral-800/20">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-mono text-neutral-600 dark:text-neutral-400">{entry.ipAddress || 'Unknown IP'}</span>
+                      <span className="text-[10px] text-neutral-400">{new Date(entry.timestamp).toLocaleString()}</span>
+                    </div>
+                    {entry.userAgent && <p className="text-[11px] text-neutral-400 mt-0.5 truncate">{entry.userAgent}</p>}
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </PanelLayout>
+  )
+}
