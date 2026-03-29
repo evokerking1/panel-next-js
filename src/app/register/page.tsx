@@ -1,0 +1,149 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+
+function passwordStrength(pw: string): { score: number; label: string; color: string } {
+  if (!pw.length) return { score: 0, label: '', color: '' }
+  let score = 0
+  if (pw.length >= 8) score++
+  if (/[A-Z]/.test(pw)) score++
+  if (/[0-9]/.test(pw)) score++
+  if (/[^A-Za-z0-9]/.test(pw)) score++
+  if (score <= 1) return { score: 25, label: 'Weak', color: '#ef4444' }
+  if (score === 2) return { score: 50, label: 'Fair', color: '#f59e0b' }
+  if (score === 3) return { score: 75, label: 'Good', color: '#3b82f6' }
+  return { score: 100, label: 'Strong', color: '#10b981' }
+}
+
+const inputClass = "w-full px-3.5 py-2.5 rounded-[10px] border border-neutral-200 dark:border-white/[0.08] bg-neutral-50 dark:bg-white/[0.08] text-[14px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 dark:placeholder:text-neutral-500 outline-none focus:border-neutral-400 dark:focus:border-white/[0.2] focus:shadow-[0_0_0_3px_rgba(0,0,0,0.06)] dark:focus:shadow-[0_0_0_3px_rgba(255,255,255,0.08)] transition-all"
+
+export default function RegisterPage() {
+  const [showPassword, setShowPassword] = useState(false)
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [visible, setVisible] = useState(false)
+  const [settings, setSettings] = useState<{ title: string; logo: string; registerWallpaper?: string } | null>(null)
+  const router = useRouter()
+  const strength = passwordStrength(password)
+
+  useEffect(() => {
+    requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
+    fetch('/api/auth/me')
+      .then(r => r.json())
+      .then(data => {
+        if (data.user) {
+          router.replace('/dashboard')
+          return
+        }
+        if (data.userCount > 0) {
+          router.replace('/login')
+          return
+        }
+      })
+      .catch(() => {})
+    fetch('/api/public/settings').then(r => r.json()).then(d => { if (d) setSettings(d) }).catch(() => {})
+  }, [])
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    setLoading(true)
+    setError('')
+    const fd = new FormData(e.currentTarget)
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: fd.get('email'), username: fd.get('username'), password: fd.get('password') }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        const msgs: Record<string, string> = {
+          missing_fields: 'Please fill in all fields.',
+          invalid_input: 'Invalid email or password format.',
+          invalid_username: 'Username must be 3–20 alphanumeric characters.',
+          user_exists: 'Email or username already taken.',
+          registration_disabled: 'Registration is disabled.',
+        }
+        setError(msgs[data.error] || 'Registration failed.')
+        setLoading(false)
+        return
+      }
+      router.push('/login')
+    } catch {
+      setError('Network error. Please try again.')
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen">
+      <div style={{
+        width: '100%', maxWidth: 460, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        justifyContent: 'center', padding: '48px 40px', background: 'rgba(255,255,255,0.08)',
+        backdropFilter: 'blur(24px) saturate(180%)', borderRight: '1px solid rgba(0,0,0,0.08)',
+        opacity: visible ? 1 : 0, transform: visible ? 'translateX(0)' : 'translateX(-12px)',
+        transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        <div className="mb-8">
+          <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">Create account</h1>
+          <p className="text-sm text-neutral-500 mt-1">Join {settings?.title || 'Airlink'}</p>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-[13px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5" htmlFor="email">Email</label>
+            <input id="email" name="email" type="email" autoComplete="email" required className={inputClass} placeholder="you@example.com" />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5" htmlFor="username">Username</label>
+            <input id="username" name="username" type="text" autoComplete="username" required className={inputClass} placeholder="yourname" />
+          </div>
+          <div>
+            <label className="block text-[13px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5" htmlFor="password">Password</label>
+            <div className="relative">
+              <input id="password" name="password" type={showPassword ? 'text' : 'password'} autoComplete="new-password" required
+                className={inputClass + ' pr-10'} placeholder="••••••••"
+                value={password} onChange={e => setPassword(e.target.value)} />
+              <button type="button" onClick={() => setShowPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors" aria-label="Toggle password">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" width="16" height="16">
+                  <path d="M10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" />
+                  <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+            {strength.label && (
+              <div className="mt-2">
+                <div className="h-1 rounded-full bg-neutral-200 dark:bg-neutral-700 overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-300" style={{ width: `${strength.score}%`, background: strength.color }} />
+                </div>
+                <p className="text-[11px] mt-1" style={{ color: strength.color }}>{strength.label}</p>
+              </div>
+            )}
+          </div>
+
+          <button type="submit" disabled={loading}
+            className="w-full py-[11px] rounded-[10px] bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[14px] font-medium flex items-center justify-center gap-2 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 disabled:cursor-default transition-colors">
+            {loading
+              ? <svg className="animate-spin w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              : 'Create account'}
+          </button>
+        </form>
+
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mt-6">
+          Already have an account?{' '}
+          <Link href="/login" className="font-medium text-neutral-800 dark:text-neutral-200 hover:underline">Sign in</Link>
+        </p>
+      </div>
+      <div className="hidden md:block flex-1 bg-neutral-100 dark:bg-neutral-900"
+        style={settings?.registerWallpaper ? { background: `url('${settings.registerWallpaper}') center/cover no-repeat` } : {}} />
+    </div>
+  )
+}

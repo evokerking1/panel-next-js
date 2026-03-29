@@ -1,14 +1,14 @@
-import type { Metadata } from 'next';
-import './globals.css';
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'AirLink',
+  title: 'Airlink Panel',
   description: 'Game server management panel',
-};
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full js-loading" suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -20,21 +20,26 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <script
           dangerouslySetInnerHTML={{
             __html: `
-(function(){
-  var d=false;
-  try{var s=localStorage.getItem('theme');if(s==='dark')d=true;else if(!s)d=window.matchMedia('(prefers-color-scheme: dark)').matches;}catch(e){}
-  if(d)document.documentElement.classList.add('dark');
-})();
-`,
+              (function(){
+                try {
+                  var s = localStorage.getItem('theme');
+                  if (s === 'dark' || (!s && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                  }
+                } catch(e) {}
+              })();
+            `,
           }}
         />
       </head>
       <body
-        style={{ fontFamily: "'General Sans', sans-serif" }}
         className="bg-neutral-50 dark:bg-[#141414] h-full text-neutral-800 dark:text-white"
+        style={{ fontFamily: "'General Sans', system-ui, sans-serif" }}
       >
         {children}
       </body>
     </html>
-  );
+  )
 }
+
+// ~ https://github.com/thavanish made this shitty code

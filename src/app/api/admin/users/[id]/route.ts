@@ -1,52 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUser } from '@/lib/apiAuth';
+import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcrypt';
+import { getSessionFromRequest } from '@/lib/session';
 
-async function requireAdminUser(req: NextRequest) {
-  const user = await getApiUser(req);
-  if (!user) return null;
-  const full = await prisma.users.findUnique({ where: { id: user.id } });
-  return full?.isAdmin ? full : null;
+async function requireAdmin(req: NextRequest) {
+  const res = NextResponse.next();
+  const session = await getSessionFromRequest(req, res);
+  if (!session.user?.isAdmin) return null;
+  return session.user;
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminUser(req);
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const target = await prisma.users.findUnique({
+    where: { id: parseInt(id) },
+    include: { servers: { include: { node: true } }, loginHistory: { orderBy: { timestamp: 'desc' }, take: 10 } },
+  });
+
+  if (!target) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+
+  const { password: _, ...safe } = target;
+  return NextResponse.json({ user: safe });
+}
+
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await requireAdmin(req);
   if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const body = await req.json();
+  const targetId = parseInt(id);
 
-  const data: any = {
-    username: body.username || undefined,
-    email: body.email || undefined,
-    isAdmin: typeof body.isAdmin === 'boolean' ? body.isAdmin : undefined,
-    description: body.description !== undefined ? body.description : undefined,
-    serverLimit: body.serverLimit !== '' && body.serverLimit !== null ? Number(body.serverLimit) : null,
-    maxMemory: body.maxMemory !== '' && body.maxMemory !== null ? Number(body.maxMemory) : null,
-    maxCpu: body.maxCpu !== '' && body.maxCpu !== null ? Number(body.maxCpu) : null,
-    maxStorage: body.maxStorage !== '' && body.maxStorage !== null ? Number(body.maxStorage) : null,
-  };
+  const target = await prisma.users.findUnique({ where: { id: targetId } });
+  if (!target) return NextResponse.json({ error: 'User not found.' }, { status: 404 });
 
-  if (body.password && body.password.trim().length > 0) {
-    data.password = await bcrypt.hash(body.password, 12);
+  const body = await req.json().catch(() => ({}));
+  const { email, username, description, isAdmin, password, serverLimit, maxMemory, maxCpu, maxStorage } = body;
+
+  if (email && email !== target.email) {
+    const clash = await prisma.users.findFirst({ where: { email, id: { not: targetId } } });
+    if (clash) return NextResponse.json({ error: 'Email already in use.' }, { status: 409 });
   }
 
-  Object.keys(data).forEach((k) => data[k] === undefined && delete data[k]);
+  if (username && username !== target.username) {
+    const clash = await prisma.users.findFirst({ where: { username, id: { not: targetId } } });
+    if (clash) return NextResponse.json({ error: 'Username already in use.' }, { status: 409 });
+  }
 
-  const updated = await prisma.users.update({ where: { id: parseInt(id, 10) }, data });
-  return NextResponse.json({ success: true, user: { id: updated.id, username: updated.username } });
+  const data: Record<string, unknown> = {};
+  if (email) data.email = email;
+  if (username) data.username = username;
+  if (description !== undefined) data.description = description;
+  if (isAdmin !== undefined) data.isAdmin = isAdmin === true || isAdmin === 'true';
+  if (serverLimit !== undefined) data.serverLimit = serverLimit === '' || serverLimit === null ? null : parseInt(serverLimit);
+  if (maxMemory !== undefined) data.maxMemory = maxMemory === '' || maxMemory === null ? null : parseInt(maxMemory);
+  if (maxCpu !== undefined) data.maxCpu = maxCpu === '' || maxCpu === null ? null : parseInt(maxCpu);
+  if (maxStorage !== undefined) data.maxStorage = maxStorage === '' || maxStorage === null ? null : parseInt(maxStorage);
+  if (password && password.trim()) data.password = await bcrypt.hash(password, 10);
+
+  await prisma.users.update({ where: { id: targetId }, data });
+  return NextResponse.json({ success: true });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdminUser(req);
-  if (!admin) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const userId = parseInt(id, 10);
-
-  if (userId === admin.id) return NextResponse.json({ error: 'Cannot delete yourself.' }, { status: 400 });
-
-  await prisma.users.delete({ where: { id: userId } });
+  await prisma.users.delete({ where: { id: parseInt(id) } });
   return NextResponse.json({ success: true });
 }

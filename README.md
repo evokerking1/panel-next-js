@@ -1,45 +1,28 @@
-# AirLink — Next.js
 
-This is the Next.js port of the AirLink game server management panel.
+# DO NOT USE THIS THIS IS STILL IN VERY VERY VERY EARLY DEVELOPMENT ITS NOT EVEN READY FOR TESTING ALL THE UI AND EVERYTHING IS BROKEN AND NOT DONE SO PLEASE DON'T USE
+
+# Airlink Panel — Next.js
+
+A one-to-one port of the Airlink Panel from Express to Next.js 15 / React 19.
 
 ## Setup
 
 ```bash
-cp example.env .env
-# Edit .env with your database URL and session secret
-
+# 1. Install dependencies
 npm install
+
+# 2. Copy env file and set values
+cp .env.example .env
+# Edit .env — set SESSION_SECRET to a random 32+ char string
+
+# 3. Push the database schema
+npm run db:setup
+
+# 4. Start in dev mode
 npm run dev
+
+# 5. Visit http://localhost:3000 — you will be redirected to /register to create the first admin account
 ```
-
-## Architecture
-
-- **Framework**: Next.js 15 App Router
-- **Database**: Prisma + SQLite (same schema as original)
-- **Auth**: iron-session (replaces express-session)
-- **WebSockets**: Custom server (`server.ts`) — Next.js doesn't support WebSockets natively, so we attach a `ws.Server` to the same HTTP server that Next.js uses.
-- **Styling**: Tailwind CSS (same design system as original)
-
-## Key differences from the Express version
-
-| Express | Next.js |
-|---|---|
-| `express-session` | `iron-session` (cookie-based, no DB store needed) |
-| EJS templates | React Server Components + Client Components |
-| `express-ws` | Custom server with `ws` package |
-| CSRF via `csurf` | Built-in — Next.js Server Actions use CSRF-safe POST |
-| Module loader | Next.js App Router (file-based routing) |
-| Mobile/desktop EJS split | Responsive CSS (one codebase) |
-
-## WebSocket endpoints
-
-- `ws://host/ws/console/:serverUUID` — proxies console to daemon
-- `ws://host/ws/stats/:serverUUID` — proxies stats stream to daemon  
-- `ws://host/ws/online-check` — tracks online users
-
-## Addon system
-
-Addons that registered Express routes will need updating. The addon API surface in `src/lib/addonHandler.ts` exposes `registerRoute` which can be called at server startup via `server.ts`. Addon views (EJS) are not supported — addons need React components.
 
 ## Production
 
@@ -47,3 +30,14 @@ Addons that registered Express routes will need updating. The addon API surface 
 npm run build
 npm start
 ```
+
+## Environment variables
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | SQLite path, e.g. `file:./prisma/dev.db` |
+| `SESSION_SECRET` | At least 32 chars, keep private |
+| `NODE_ENV` | `development` or `production` |
+| `ENFORCE_DAEMON_HTTPS` | Set to `true` to use HTTPS/WSS for daemon connections |
+| `HOST` | Bind address (default `0.0.0.0`) |
+| `PORT` | Port (default `3000`) |

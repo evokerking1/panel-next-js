@@ -1,13 +1,26 @@
-import type { NextConfig } from 'next';
+import type { NextConfig } from 'next'
 
-const config: NextConfig = {
-  output: process.env.NODE_ENV === 'production' ? 'standalone' : undefined,
-  experimental: {
-    serverActions: {
-      allowedOrigins: ['*'],
-      bodySizeLimit: '100mb',
-    },
+const nextConfig: NextConfig = {
+  serverExternalPackages: ['bcryptjs', '@prisma/client'],
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: 'api.dicebear.com' },
+      { protocol: 'https', hostname: 'crafatar.com' },
+    ],
   },
-};
+  async headers() {
+    return [
+      {
+        source: '/api/:path*',
+        headers: [
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+        ],
+      },
+    ]
+  },
+}
 
-export default config;
+export default nextConfig

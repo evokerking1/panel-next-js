@@ -1,35 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUser } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
-import { isPterodactylEgg, parseEgg, normalizeEggForDb, validateEggData } from '@/lib/eggParser';
+import { getSessionFromRequest } from '@/lib/session';
 
 async function requireAdmin(req: NextRequest) {
-  const u = await getApiUser(req);
-  if (!u) return null;
-  const full = await prisma.users.findUnique({ where: { id: u.id } });
-  return full?.isAdmin ? full : null;
+  const res = NextResponse.next();
+  const session = await getSessionFromRequest(req, res);
+  if (!session.user?.isAdmin) return null;
+  return session.user;
 }
 
-function normalizeImageData(raw: Record<string, unknown>) {
-  if (isPterodactylEgg(raw)) {
-    const egg = parseEgg(raw);
-    return normalizeEggForDb(egg);
-  }
+function normalizeImage(raw: Record<string, unknown>) {
   const dockerImages = raw.docker_images || raw.dockerImages;
   const dockerImagesArray = Array.isArray(dockerImages)
     ? dockerImages
     : typeof dockerImages === 'object' && dockerImages !== null
       ? Object.entries(dockerImages as Record<string, string>).map(([k, v]) => ({ [k]: v }))
       : [];
+
   return {
     name: String(raw.name ?? ''),
     description: String(raw.description ?? ''),
     author: String(raw.author ?? ''),
     authorName: String(raw.authorName ?? ''),
     startup: String(raw.startup ?? ''),
-    stop: String((raw as any).stop ?? ''),
-    startup_done: String((raw as any).startup_done ?? ''),
-    config_files: String((raw as any).config_files ?? ''),
+    stop: String((raw as Record<string, unknown>).stop ?? ''),
+    startup_done: String((raw as Record<string, unknown>).startup_done ?? ''),
+    config_files: String((raw as Record<string, unknown>).config_files ?? ''),
     meta: JSON.stringify(raw.meta ?? {}),
     dockerImages: JSON.stringify(dockerImagesArray),
     info: JSON.stringify(raw.info ?? {}),
@@ -39,26 +35,57 @@ function normalizeImageData(raw: Record<string, unknown>) {
 }
 
 export async function GET(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const images = await prisma.images.findMany({ orderBy: { name: 'asc' } });
-  return NextResponse.json(images);
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const images = await prisma.images.findMany({ orderBy: { id: 'asc' } });
+  return NextResponse.json({ images });
 }
 
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const raw = await req.json() as Record<string, unknown>;
-  const { valid, errors } = validateEggData(raw);
-  if (!valid) return NextResponse.json({ error: 'Invalid egg data', details: errors }, { status: 400 });
+  const body = await req.json().catch(() => ({}));
+  const url = new URL(req.url);
+  const action = url.searchParams.get('action');
 
-  const data = normalizeImageData(raw);
-  const existing = await prisma.images.findFirst({ where: { name: data.name } });
-
-  if (existing) {
-    await prisma.images.update({ where: { id: existing.id }, data });
-    return NextResponse.json({ success: true, name: data.name, id: existing.id, updated: true });
+  if (action === 'upload') {
+    if (!body || Object.keys(body).length === 0) {
+      return NextResponse.json({ error: 'No image data provided.' }, { status: 400 });
+    }
+    const data = normalizeImage(body as Record<string, unknown>);
+    const existing = await prisma.images.findFirst({ where: { name: data.name } });
+    if (existing) {
+      await prisma.images.update({ where: { id: existing.id }, data });
+      return NextResponse.json({ success: true, message: 'Image updated.', id: existing.id });
+    }
+    const created = await prisma.images.create({ data });
+    return NextResponse.json({ success: true, message: 'Image created.', id: created.id });
   }
 
-  const created = await prisma.images.create({ data });
-  return NextResponse.json({ success: true, name: data.name, id: created.id, updated: false });
+  const { name, description, author, authorName, startup } = body;
+  if (!name || !startup) {
+    return NextResponse.json({ error: 'Name and startup command are required.' }, { status: 400 });
+  }
+
+  const image = await prisma.images.create({
+    data: {
+      name,
+      description: description || '',
+      author: author || '',
+      authorName: authorName || '',
+      startup,
+      stop: 'stop',
+      startup_done: '',
+      config_files: '',
+      meta: JSON.stringify({ version: 'AL_V1' }),
+      dockerImages: JSON.stringify([]),
+      info: JSON.stringify({ features: [] }),
+      scripts: JSON.stringify({}),
+      variables: JSON.stringify([]),
+    },
+  });
+
+  return NextResponse.json({ success: true, id: image.id });
 }

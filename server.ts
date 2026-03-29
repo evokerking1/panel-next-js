@@ -1,175 +1,78 @@
-// Custom HTTP server that runs Next.js alongside a WebSocket server.
-// WebSockets can't be handled inside Next.js route handlers, so we attach
-// the ws.Server to the same underlying HTTP server that Next.js uses.
-
 import { createServer } from 'http';
 import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
-import { IncomingMessage } from 'http';
-import { settingsLoader } from './src/lib/settingsLoader';
-import { startPlayerStatsCollection } from './src/lib/playerStatsCollector';
-import { initEggCatalogue } from './src/lib/eggCatalogue';
 import { getIronSession } from 'iron-session';
-import { sessionOptions } from './src/lib/session';
-import type { SessionData } from './src/lib/session';
-import prisma from './src/lib/prisma';
-import { daemonSchemeSync } from './src/lib/daemon';
+import { IncomingMessage, ServerResponse } from 'http';
 
 const dev = process.env.NODE_ENV !== 'production';
+const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
-const app = next({ dev });
-const handle = app.getRequestHandler();
+const sessionOptions = {
+  password: process.env.SESSION_SECRET || 'change-this-secret-to-something-32-chars-long',
+  cookieName: 'airlink_session',
+  cookieOptions: {
+    secure: !dev,
+    httpOnly: true,
+  },
+};
 
-// Keep track of usernames with active WS connections
-export const onlineUsers: Set<string> = new Set();
-const userTimeouts: Map<string, NodeJS.Timeout> = new Map();
-
-async function getUserFromRequest(req: IncomingMessage): Promise<{ id: number; username: string } | null> {
+async function getSessionUser(req: IncomingMessage) {
   try {
-    // iron-session reads from the cookie header on the raw request
-    const fakeRes = {
-      getHeader: () => undefined,
-      setHeader: () => {},
-    } as any;
-
-    const session = await getIronSession<SessionData>(req as any, fakeRes, sessionOptions);
-    if (!session.user?.id) return null;
-
-    const user = await prisma.users.findUnique({
-      where: { id: session.user.id },
-      select: { id: true, username: true },
-    });
-
-    return user?.username ? { id: user.id, username: user.username } : null;
+    const fakeRes = { setHeader: () => {}, getHeader: () => undefined } as unknown as ServerResponse;
+    const session = await getIronSession<{ user?: { id: number; isAdmin: boolean } }>(
+      req as Parameters<typeof getIronSession>[0],
+      fakeRes,
+      sessionOptions,
+    );
+    return session.user ?? null;
   } catch {
     return null;
   }
 }
 
-async function handleConsoleProxy(
-  ws: WebSocket,
-  req: IncomingMessage,
-  serverId: string,
+async function proxyConsole(
+  clientWs: WebSocket,
+  serverUUID: string,
+  daemonWsUrl: string,
 ) {
-  const user = await getUserFromRequest(req);
-  if (!user) {
-    ws.close();
-    return;
-  }
+  const daemonWs = new WebSocket(daemonWsUrl);
 
-  const server = await prisma.server.findUnique({
-    where: { UUID: serverId },
-    include: { node: true },
+  daemonWs.on('open', () => {
+    // daemon expects auth event
   });
 
-  if (!server) {
-    ws.send(JSON.stringify({ error: 'Server not found' }));
-    ws.close();
-    return;
-  }
-
-  // Check ownership or admin
-  const fullUser = await prisma.users.findUnique({ where: { id: user.id } });
-  if (!fullUser?.isAdmin && server.ownerId !== user.id) {
-    ws.close();
-    return;
-  }
-
-  const { node } = server;
-  const scheme = daemonSchemeSync() === 'https' ? 'wss' : 'ws';
-  const upstream = new WebSocket(
-    `${scheme}://${node.address}:${node.port}/ws/console/${serverId}`,
-  );
-
-  upstream.onopen = () => {
-    upstream.send(JSON.stringify({ event: 'auth', args: [node.key] }));
-  };
-
-  upstream.onmessage = (msg) => ws.send(msg.data);
-  upstream.onerror = () => {
-    ws.send('\x1b[31;1mThis instance is unavailable!\x1b[0m');
-  };
-  upstream.onclose = () => ws.close();
-
-  ws.onmessage = (msg) => upstream.send(msg.data);
-  ws.on('close', () => upstream.close());
-}
-
-async function handleStatsProxy(
-  ws: WebSocket,
-  req: IncomingMessage,
-  serverId: string,
-) {
-  const user = await getUserFromRequest(req);
-  if (!user) {
-    ws.close();
-    return;
-  }
-
-  const server = await prisma.server.findUnique({
-    where: { UUID: serverId },
-    include: { node: true },
+  daemonWs.on('message', (data) => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(data);
+    }
   });
 
-  if (!server) {
-    ws.close();
-    return;
-  }
+  daemonWs.on('error', () => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send('\x1b[31;1mThis instance is unavailable!\x1b[0m');
+    }
+  });
 
-  const fullUser = await prisma.users.findUnique({ where: { id: user.id } });
-  if (!fullUser?.isAdmin && server.ownerId !== user.id) {
-    ws.close();
-    return;
-  }
+  daemonWs.on('close', () => {
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+  });
 
-  const { node } = server;
-  const scheme = daemonSchemeSync() === 'https' ? 'wss' : 'ws';
-  const upstream = new WebSocket(
-    `${scheme}://${node.address}:${node.port}/ws/stats/${serverId}`,
-  );
+  clientWs.on('message', (data) => {
+    if (daemonWs.readyState === WebSocket.OPEN) daemonWs.send(data);
+  });
 
-  upstream.onopen = () => {
-    upstream.send(JSON.stringify({ event: 'auth', args: [node.key] }));
-  };
-
-  upstream.onmessage = (msg) => ws.send(msg.data);
-  upstream.onerror = () => ws.close();
-  upstream.onclose = () => ws.close();
-
-  ws.on('close', () => upstream.close());
-}
-
-async function handleOnlineCheck(ws: WebSocket, req: IncomingMessage) {
-  const user = await getUserFromRequest(req);
-  if (!user) {
-    ws.close();
-    return;
-  }
-
-  const { username } = user;
-
-  const existingTimeout = userTimeouts.get(username);
-  if (existingTimeout) {
-    clearTimeout(existingTimeout);
-    userTimeouts.delete(username);
-  }
-
-  onlineUsers.add(username);
-  ws.send(JSON.stringify({ online: true }));
-
-  ws.on('close', () => {
-    const timeout = setTimeout(() => {
-      onlineUsers.delete(username);
-      userTimeouts.delete(username);
-    }, 1000);
-    userTimeouts.set(username, timeout);
+  clientWs.on('close', () => {
+    if (daemonWs.readyState !== WebSocket.CLOSED) daemonWs.close();
   });
 }
 
-app.prepare().then(async () => {
-  await settingsLoader();
+async function startServer() {
+  const app = next({ dev, hostname, port });
+  const handle = app.getRequestHandler();
+
+  await app.prepare();
 
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url!, true);
@@ -178,28 +81,62 @@ app.prepare().then(async () => {
 
   const wss = new WebSocketServer({ noServer: true });
 
-  httpServer.on('upgrade', (req, socket, head) => {
-    const parsedUrl = parse(req.url || '', true);
-    const pathname = parsedUrl.pathname || '';
+  httpServer.on('upgrade', async (req, socket, head) => {
+    const url = req.url || '';
 
-    const consoleMatch = pathname.match(/^\/ws\/console\/(.+)$/);
-    const statsMatch = pathname.match(/^\/ws\/stats\/(.+)$/);
-    const onlineMatch = pathname === '/ws/online-check';
-
-    if (consoleMatch || statsMatch || onlineMatch) {
-      wss.handleUpgrade(req, socket as any, head, (ws) => {
-        if (consoleMatch) handleConsoleProxy(ws, req, consoleMatch[1]);
-        else if (statsMatch) handleStatsProxy(ws, req, statsMatch[1]);
-        else handleOnlineCheck(ws, req);
-      });
-    } else {
+    // Only handle /api/server/:uuid/console
+    const consoleMatch = url.match(/^\/api\/server\/([^/]+)\/console/);
+    if (!consoleMatch) {
       socket.destroy();
+      return;
     }
+
+    const serverUUID = consoleMatch[1];
+
+    // Authenticate
+    const sessionUser = await getSessionUser(req);
+    if (!sessionUser) {
+      socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    wss.handleUpgrade(req, socket, head, async (clientWs) => {
+      try {
+        // Dynamically import prisma to avoid top-level import issues
+        const { default: prisma } = await import('./src/lib/prisma');
+        const server = await prisma.server.findUnique({
+          where: { UUID: serverUUID },
+          include: { node: true },
+        });
+
+        if (!server) {
+          clientWs.send(JSON.stringify({ error: 'Server not found' }));
+          clientWs.close();
+          return;
+        }
+
+        // Auth check — owner or admin
+        if (server.ownerId !== sessionUser.id && !sessionUser.isAdmin) {
+          clientWs.send(JSON.stringify({ error: 'Forbidden' }));
+          clientWs.close();
+          return;
+        }
+
+        const scheme = process.env.ENFORCE_DAEMON_HTTPS === 'true' ? 'wss' : 'ws';
+        const daemonWsUrl = `${scheme}://${server.node.address}:${server.node.port}/container/${serverUUID}`;
+
+        await proxyConsole(clientWs, serverUUID, daemonWsUrl);
+      } catch (err) {
+        console.error('[WS] Error setting up console proxy:', err);
+        clientWs.close();
+      }
+    });
   });
 
-  httpServer.listen(port, () => {
-    startPlayerStatsCollection();
-    initEggCatalogue().catch(() => {});
-    console.log(`> AirLink ready on http://localhost:${port}`);
+  httpServer.listen(port, hostname, () => {
+    console.log(`> Ready on http://${hostname}:${port}`);
   });
-});
+}
+
+startServer().catch(console.error);

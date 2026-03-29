@@ -1,35 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUser } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
+import { getSessionFromRequest } from '@/lib/session';
 
 async function requireAdmin(req: NextRequest) {
-  const u = await getApiUser(req);
-  if (!u) return null;
-  const full = await prisma.users.findUnique({ where: { id: u.id } });
-  return full?.isAdmin ? full : null;
+  const res = NextResponse.next();
+  const session = await getSessionFromRequest(req, res);
+  if (!session.user?.isAdmin) return null;
+  return session.user;
 }
 
-export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
-  const body = await req.json();
+  const node = await prisma.node.findUnique({
+    where: { id: parseInt(id) },
+    include: { servers: true },
+  });
 
-  const data: any = {};
-  if (body.name) data.name = body.name;
-  if (body.address) data.address = body.address;
-  if (body.port) data.port = parseInt(body.port, 10);
-  if (body.key) data.key = body.key;
-  if (body.ram !== undefined) data.ram = parseInt(body.ram, 10);
-  if (body.cpu !== undefined) data.cpu = parseInt(body.cpu, 10);
-  if (body.disk !== undefined) data.disk = parseInt(body.disk, 10);
+  if (!node) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  return NextResponse.json({ node });
+}
 
-  const node = await prisma.node.update({ where: { id: parseInt(id, 10) }, data });
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const { id } = await params;
+  const body = await req.json().catch(() => ({}));
+  const { name, ram, cpu, disk, address, port, allocatedPorts } = body;
+
+  if (!name || isNaN(parseInt(ram)) || isNaN(parseInt(cpu)) || isNaN(parseInt(disk)) || !address || isNaN(parseInt(port))) {
+    return NextResponse.json({ error: 'All fields are required.' }, { status: 400 });
+  }
+
+  try {
+    const parsed = JSON.parse(allocatedPorts || '[]');
+    if (!Array.isArray(parsed)) throw new Error('Must be array');
+    for (const p of parsed) {
+      if (typeof p !== 'number' || p < 1024 || p > 65535) throw new Error('Invalid port range');
+    }
+  } catch (e: unknown) {
+    return NextResponse.json({ error: 'Invalid allocated ports: ' + (e as Error).message }, { status: 400 });
+  }
+
+  const node = await prisma.node.update({
+    where: { id: parseInt(id) },
+    data: {
+      name,
+      ram: parseInt(ram),
+      cpu: parseInt(cpu),
+      disk: parseInt(disk),
+      address,
+      port: parseInt(port),
+      allocatedPorts: allocatedPorts || '[]',
+    },
+  });
+
   return NextResponse.json({ success: true, node });
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { id } = await params;
-  await prisma.node.delete({ where: { id: parseInt(id, 10) } });
+  const url = new URL(req.url);
+  const deleteInstances = url.searchParams.get('deleteInstances') === 'true';
+
+  if (deleteInstances) {
+    await prisma.server.deleteMany({ where: { nodeId: parseInt(id) } });
+  }
+
+  await prisma.node.delete({ where: { id: parseInt(id) } });
   return NextResponse.json({ success: true });
 }

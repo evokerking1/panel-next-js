@@ -1,111 +1,120 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUser } from '@/lib/apiAuth';
 import prisma from '@/lib/prisma';
+import { getSessionFromRequest } from '@/lib/session';
+import { daemonPost } from '@/lib/daemon';
 import axios from 'axios';
-import { daemonSchemeSync } from '@/lib/daemon';
-import { queueer } from '@/lib/queueer';
 
 async function requireAdmin(req: NextRequest) {
-  const u = await getApiUser(req);
-  if (!u) return null;
-  const full = await prisma.users.findUnique({ where: { id: u.id } });
-  return full?.isAdmin ? full : null;
+  const res = NextResponse.next();
+  const session = await getSessionFromRequest(req, res);
+  if (!session.user?.isAdmin) return null;
+  return session.user;
+}
+
+export async function GET(req: NextRequest) {
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const servers = await prisma.server.findMany({
+    include: { node: true, owner: true, image: true },
+  });
+  return NextResponse.json({ servers });
 }
 
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json();
-  const { name, description, nodeId, imageId, ownerId, port, Memory, Cpu, Storage, dockerImage, variables, allowStartupEdit } = body;
+  const body = await req.json().catch(() => ({}));
+  const { name, description, nodeId, imageId, Ports, Memory, Cpu, Storage, dockerImage, variables, ownerId, allowStartupEdit } = body;
 
-  if (!name || !nodeId || !imageId || !ownerId || !port) {
+  if (!name || !nodeId || !imageId || !Ports || !Memory || !Cpu || !Storage || !ownerId) {
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
   }
 
-  const [node, image] = await Promise.all([
-    prisma.node.findUnique({ where: { id: parseInt(nodeId, 10) } }),
-    prisma.images.findUnique({ where: { id: parseInt(imageId, 10) } }),
-  ]);
-
+  const node = await prisma.node.findUnique({ where: { id: parseInt(nodeId) } });
   if (!node) return NextResponse.json({ error: 'Node not found.' }, { status: 404 });
+
+  const image = await prisma.images.findUnique({ where: { id: parseInt(imageId) } });
   if (!image) return NextResponse.json({ error: 'Image not found.' }, { status: 404 });
 
-  const portNum = parseInt(String(port).split(':')[0], 10);
-
-  // Check port not already in use on this node
-  const existingServers = await prisma.server.findMany({ where: { nodeId: node.id } });
-  for (const s of existingServers) {
-    try {
-      const ports = JSON.parse(s.Ports);
-      if (ports.some((p: any) => parseInt(String(p.Port).split(':')[0], 10) === portNum)) {
-        return NextResponse.json({ error: `Port ${portNum} is already in use.` }, { status: 400 });
-      }
-    } catch { /* skip */ }
+  let parsedPorts: { primary: boolean; Port: number }[];
+  try {
+    parsedPorts = JSON.parse(Ports);
+  } catch {
+    return NextResponse.json({ error: 'Invalid ports format.' }, { status: 400 });
   }
 
-  const dockerImages: Record<string, string>[] = (() => { try { return JSON.parse(image.dockerImages ?? '[]'); } catch { return []; } })();
-  const imageDocker = dockerImages.find((d) => Object.keys(d).includes(dockerImage));
-  if (!imageDocker) return NextResponse.json({ error: 'Docker image variant not found.' }, { status: 400 });
+  let dockerImages: string[] = [];
+  try {
+    const parsed = JSON.parse(image.dockerImages || '[]');
+    dockerImages = Array.isArray(parsed) ? parsed.map((d: Record<string, string>) => Object.values(d)[0]).filter(Boolean) : [];
+  } catch {
+    dockerImages = [];
+  }
 
-  // Merge submitted variable values
-  const imageVars: any[] = (() => { try { return JSON.parse(image.variables ?? '[]'); } catch { return []; } })();
-  const submitted: any[] = Array.isArray(variables) ? variables : [];
-  const mergedVars = imageVars.map((v: any) => {
-    const key = String(v.env_variable ?? v.env ?? '');
-    const sub = submitted.find((s: any) => String(s.env_variable ?? s.env ?? '') === key);
-    return { ...v, value: sub?.value ?? v.default_value ?? '' };
-  });
+  const finalDockerImage = dockerImage || dockerImages[0] || '';
 
   const server = await prisma.server.create({
     data: {
-      name: name.trim(),
-      description: description?.trim() ?? null,
-      ownerId: parseInt(ownerId, 10),
-      nodeId: node.id,
-      imageId: image.id,
-      Ports: JSON.stringify([{ Port: portNum, primary: true }]),
-      Memory: parseInt(Memory, 10) || 1024,
-      Cpu: parseInt(Cpu, 10) || 100,
-      Storage: parseInt(Storage, 10) || 20,
-      Variables: JSON.stringify(mergedVars),
-      StartCommand: image.startup ?? '',
-      dockerImage: JSON.stringify(imageDocker),
+      name,
+      description: description || '',
+      nodeId: parseInt(nodeId),
+      imageId: parseInt(imageId),
+      ownerId: parseInt(ownerId),
+      Ports: typeof Ports === 'string' ? Ports : JSON.stringify(Ports),
+      Memory: parseInt(Memory),
+      Cpu: parseInt(Cpu),
+      Storage: parseInt(Storage),
+      dockerImage: finalDockerImage,
+      Variables: typeof variables === 'string' ? variables : JSON.stringify(variables || []),
+      StartCommand: image.startup || '',
+      allowStartupEdit: allowStartupEdit === true || allowStartupEdit === 'true',
       Installing: true,
       Queued: true,
     },
+    include: { node: true, image: true },
   });
 
-  await prisma.$executeRaw`UPDATE "Server" SET "allowStartupEdit" = ${allowStartupEdit === true} WHERE "id" = ${server.id}`;
-
-  queueer.addTask(async () => {
+  try {
+    let envVariables: Record<string, string> = {};
     try {
-      const env: Record<string, string> = {};
-      mergedVars.forEach((v: any) => { const k = v.env_variable || v.env; if (k) env[k] = String(v.value ?? v.default_value ?? ''); });
-      env['SERVER_PORT'] = String(portNum);
-      env['SERVER_MEMORY'] = String(server.Memory);
-      env['SERVER_CPU'] = String(server.Cpu);
+      const vars = JSON.parse(server.Variables || '[]');
+      for (const v of vars) {
+        const key = v.env_variable || v.env;
+        if (key) envVariables[key] = String(v.value ?? v.default_value ?? '');
+      }
+    } catch {}
 
-      const dockerImageValue = Object.values(imageDocker)[0] as string;
-      await axios({
-        method: 'POST',
-        url: `${daemonSchemeSync()}://${node.address}:${node.port}/container/create`,
-        auth: { username: 'Airlink', password: node.key },
-        data: {
-          id: server.UUID,
-          image: dockerImageValue,
-          ports: portNum,
-          Memory: server.Memory,
-          Cpu: server.Cpu,
-          Storage: server.Storage,
-          env,
-          scripts: image.scripts ? JSON.parse(image.scripts) : {},
-        },
-        timeout: 60000,
-      });
-    } catch (err) {
-      console.error('Daemon container create failed:', err);
-    }
-  });
+    const primaryPort = parsedPorts.find(p => p.primary)?.Port;
 
-  return NextResponse.json({ success: true, UUID: server.UUID });
+    await daemonPost(node.address, node.port, node.key, '/container/create', {
+      id: server.UUID,
+      Image: finalDockerImage,
+      Env: envVariables,
+      Scripts: {},
+      Memory: server.Memory,
+      Cpu: server.Cpu,
+      Storage: server.Storage,
+      StartupCmd: server.StartCommand,
+      StopCmd: image.stop || 'stop',
+      StartupDone: image.startup_done || '',
+      Port: primaryPort,
+      Ports: parsedPorts,
+    });
+
+    await prisma.server.update({
+      where: { id: server.id },
+      data: { Installing: false, Queued: false },
+    });
+  } catch (err) {
+    const msg = axios.isAxiosError(err) ? err.response?.data?.message : String(err);
+    return NextResponse.json({
+      success: true,
+      server,
+      warning: 'Server created but daemon install failed: ' + msg,
+    });
+  }
+
+  return NextResponse.json({ success: true, server });
 }

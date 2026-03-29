@@ -1,38 +1,67 @@
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@500,300,600,400,700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Hide all scrollbars globally */
-html,
-body,
-* {
+html, body, * {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
+
 ::-webkit-scrollbar {
   display: none;
 }
 
-html,
-body {
+html, body {
   transition: background-color 0.25s ease-in, color 0.25s ease-in;
 }
 
-/* Pre-hide animatable content before JS runs to avoid flash-then-hide jitter */
-.js-loading #page-content > *:not(.mobile-top-bar):not(.mobile-bottom-nav):not([style*="position: fixed"]),
-.js-loading #server-page-body > * {
-  opacity: 0;
-  transform: translateY(14px);
-}
-
-/* Page content entry animations */
-#page-content > *,
-#server-page-body > * {
-  transition: opacity 0.22s ease, transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Sidebar active nav link background slide */
+/* active nav pill */
 #active-background {
-  transition: top 180ms cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 180ms ease;
+  transition: top 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.15s ease;
 }
+
+/* layout entry anim */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.page-enter > * {
+  animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* console appear */
+@keyframes consoleAppear {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.console-wrap {
+  animation: consoleAppear 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* nav pill active */
+.nav-link2[data-active='true'] {
+  background: rgba(229, 229, 229, 1);
+  border-color: rgba(212, 212, 212, 1);
+  color: rgba(10, 10, 10, 1);
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.dark .nav-link2[data-active='true'] {
+  background: rgba(255,255,255,0.10);
+  border-color: rgba(255,255,255,0.12);
+  color: white;
+}
+
+/* stats cards */
+.stats-card {
+  position: relative;
+  animation: fadeUp 0.3s cubic-bezier(0.16,1,0.3,1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+/* ~ https://github.com/thavanish made this shitty code */

@@ -1,41 +1,62 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUser } from '@/lib/apiAuth';
+import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
-import bcrypt from 'bcrypt';
+import { getSessionFromRequest } from '@/lib/session';
 
 async function requireAdmin(req: NextRequest) {
-  const u = await getApiUser(req);
-  if (!u) return null;
-  const full = await prisma.users.findUnique({ where: { id: u.id } });
-  return full?.isAdmin ? full : null;
+  const res = NextResponse.next();
+  const session = await getSessionFromRequest(req, res);
+  if (!session.user?.isAdmin) return null;
+  return session.user;
 }
 
 export async function GET(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  const users = await prisma.users.findMany({ include: { servers: true }, orderBy: { id: 'asc' } });
-  return NextResponse.json(users.map((u) => ({ ...u, password: undefined })));
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  const users = await prisma.users.findMany({
+    include: { servers: true },
+    orderBy: { id: 'asc' },
+  });
+
+  return NextResponse.json({ users });
 }
 
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req);
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const { email, username, password, isAdmin } = await req.json();
+  const body = await req.json().catch(() => ({}));
+  const { email, username, password, isAdmin } = body as {
+    email: string;
+    username: string;
+    password: string;
+    isAdmin?: boolean | string;
+  };
+
   if (!email || !username || !password) {
-    return NextResponse.json({ error: 'email, username, and password are required.' }, { status: 400 });
+    return NextResponse.json({ error: 'Email, username, and password are required.' }, { status: 400 });
+  }
+
+  if (!/^[a-zA-Z0-9]{3,20}$/.test(username)) {
+    return NextResponse.json({ error: 'Username must be 3–20 alphanumeric characters.' }, { status: 400 });
+  }
+
+  if (password.length < 8 || !/[A-Za-z]/.test(password) || !/\d/.test(password)) {
+    return NextResponse.json({ error: 'Password must be at least 8 characters with a letter and number.' }, { status: 400 });
   }
 
   const existing = await prisma.users.findFirst({ where: { OR: [{ email }, { username }] } });
-  if (existing) return NextResponse.json({ error: 'Username or email already taken.' }, { status: 409 });
+  if (existing) return NextResponse.json({ error: 'Email or username already exists.' }, { status: 409 });
 
-  const user = await prisma.users.create({
+  await prisma.users.create({
     data: {
       email,
       username,
-      password: await bcrypt.hash(password, 12),
-      isAdmin: isAdmin === true,
-      description: 'No About Me',
+      password: await bcrypt.hash(password, 10),
+      isAdmin: isAdmin === true || isAdmin === 'true',
     },
   });
 
-  return NextResponse.json({ success: true, user: { id: user.id, username: user.username } });
+  return NextResponse.json({ success: true });
 }
