@@ -94,7 +94,7 @@ export default function AdminUserEditPage({ params }: { params: Promise<{ id: st
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto pt-16">
+      <div className="flex-1 p-6 overflow-y-auto">
         <div className="sm:flex sm:items-center px-8 pt-4">
           <FadeUp className="sm:flex-auto">
             <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Edit User</h1>

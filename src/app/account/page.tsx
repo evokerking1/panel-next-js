@@ -1,11 +1,19 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Link from 'next/link'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 
-interface LoginEntry { id: number; ipAddress?: string; userAgent?: string; timestamp: string }
+interface LoginEntry {
+  id: number
+  ipAddress?: string
+  userAgent?: string
+  timestamp: string
+}
+
 interface FullUser {
   id: number
   email: string
@@ -16,7 +24,17 @@ interface FullUser {
   loginHistory: LoginEntry[]
 }
 
-const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+const inputClass =
+  'rounded-xl border border-neutral-200 dark:border-neutral-600/30 focus:outline-none text-sm w-full px-3 py-2.5 bg-neutral-100 dark:bg-neutral-700/20 placeholder-neutral-400 text-neutral-800 dark:text-white transition focus:border-neutral-400 dark:focus:border-white/25'
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 p-4">
+      <p className="text-sm font-medium text-neutral-800 dark:text-white mb-4">{title}</p>
+      {children}
+    </div>
+  )
+}
 
 export default function AccountPage() {
   const { user, loading: authLoading } = useAuth({ require: true })
@@ -25,9 +43,15 @@ export default function AccountPage() {
 
   const [fullUser, setFullUser] = useState<FullUser | null>(null)
   const [avatarSrc, setAvatarSrc] = useState('')
-  const [saving, setSaving] = useState(false)
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
-  const [form, setForm] = useState({ username: '', description: '', email: '', currentPassword: '', newPassword: '' })
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({
+    username: '',
+    description: '',
+    email: '',
+    currentPassword: '',
+    newPassword: '',
+  })
 
   useEffect(() => {
     if (!user) return
@@ -36,19 +60,21 @@ export default function AccountPage() {
       .then(d => {
         if (d.user) {
           setFullUser(d.user)
-          setForm(f => ({ ...f, username: d.user.username || '', description: d.user.description || '', email: d.user.email }))
-          updateAvatarSrc(d.user.username, d.user.avatar)
+          setForm(f => ({
+            ...f,
+            username: d.user.username || '',
+            description: d.user.description || '',
+            email: d.user.email,
+          }))
+          setAvatarSrc(resolveAvatar(d.user.username, d.user.avatar))
         }
       })
       .catch(() => {})
   }, [user])
 
-  function updateAvatarSrc(username: string, avatar: string | null | undefined) {
-    if (avatar) {
-      setAvatarSrc(avatar.startsWith('/') ? avatar : `/${avatar}`)
-    } else {
-      setAvatarSrc(`https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=525252&color=fff&size=128`)
-    }
+  function resolveAvatar(username: string, avatar: string | null | undefined) {
+    if (avatar) return avatar.startsWith('/') ? avatar : `/${avatar}`
+    return `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(username)}`
   }
 
   async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -74,11 +100,9 @@ export default function AccountPage() {
     setUploadingAvatar(true)
     const res = await fetch('/api/user/avatar', { method: 'DELETE' })
     if (res.ok) {
-      setFullUser(prev => {
-        if (!prev) return prev
-        updateAvatarSrc(prev.username, null)
-        return { ...prev, avatar: null }
-      })
+      const fallback = resolveAvatar(fullUser?.username || '', null)
+      setAvatarSrc(fallback)
+      setFullUser(prev => prev ? { ...prev, avatar: null } : prev)
       showToast('Avatar removed.', 'success')
     } else {
       showToast('Failed to remove avatar.', 'error')
@@ -108,128 +132,183 @@ export default function AccountPage() {
     if (res.ok) {
       showToast('Profile updated.', 'success')
       setForm(f => ({ ...f, currentPassword: '', newPassword: '' }))
-      if (fullUser) updateAvatarSrc(form.username || fullUser.username, fullUser.avatar)
     } else {
       showToast(d.error || 'Failed to update.', 'error')
     }
     setSaving(false)
   }
 
-  if (authLoading || !fullUser) return (
-    <PanelLayout>
-      <div className="flex items-center justify-center h-64">
-        <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
-      </div>
-    </PanelLayout>
-  )
+  if (authLoading || !fullUser) {
+    return (
+      <PanelLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+        </div>
+      </PanelLayout>
+    )
+  }
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
+      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-12 space-y-4 max-w-2xl">
 
-        <div className="flex items-center gap-4 mb-7">
-          <div className="relative shrink-0">
-            <img
-              src={avatarSrc}
-              alt="Avatar"
-              className="h-14 w-14 rounded-xl border border-neutral-200 dark:border-white/10 object-cover"
-            />
-            <label
-              htmlFor="avatar-input"
-              title="Upload photo"
-              className="absolute -bottom-1.5 -right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-neutral-800 dark:bg-white border-2 border-white dark:border-neutral-900 cursor-pointer hover:bg-neutral-700 dark:hover:bg-neutral-200 transition"
+        <FadeUp>
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <div>
+              <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
+              <p className="text-xs text-neutral-500 mt-0.5">Manage your profile and preferences.</p>
+            </div>
+            <Link
+              href="/credits"
+              className="flex items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-white/5 px-3 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 shadow-sm dark:shadow-none transition shrink-0 hover:bg-neutral-50 dark:hover:bg-white/10"
             >
-              {uploadingAvatar ? (
-                <div className="w-2.5 h-2.5 border border-white dark:border-neutral-900 border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3 text-white dark:text-neutral-900">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                </svg>
-              )}
-            </label>
-            <input
-              id="avatar-input"
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarChange}
-            />
-            {fullUser.avatar && (
-              <button
-                onClick={removeAvatar}
-                disabled={uploadingAvatar}
-                title="Remove photo"
-                className="absolute -top-1.5 -right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-500 border-2 border-white dark:border-neutral-900 transition"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3 text-white">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
+                <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5A.75.75 0 0 0 12 9Z" clipRule="evenodd" />
+              </svg>
+              Credits
+            </Link>
           </div>
+        </FadeUp>
 
-          <div className="min-w-0">
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Manage your profile and preferences.</p>
-          </div>
-        </div>
+        {/* Profile picture */}
+        <FadeUp delay={0.04}>
+          <Section title="Profile picture">
+            <div className="flex items-center gap-4">
+              <img
+                src={avatarSrc}
+                alt="Avatar"
+                className="h-14 w-14 rounded-xl border border-neutral-200 dark:border-white/10 object-cover shrink-0"
+              />
+              <div className="flex flex-col gap-2">
+                <label
+                  htmlFor="avatar-input"
+                  className="cursor-pointer inline-block rounded-xl bg-neutral-100 dark:bg-neutral-700/30 border border-neutral-200 dark:border-neutral-600/30 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 transition active:scale-95 select-none"
+                >
+                  {uploadingAvatar ? 'Uploading…' : 'Choose image'}
+                </label>
+                <input
+                  id="avatar-input"
+                  ref={fileRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <p className="text-[10px] text-neutral-400">JPG, PNG, GIF or WebP — max 2 MB</p>
+                {fullUser.avatar && (
+                  <button
+                    onClick={removeAvatar}
+                    disabled={uploadingAvatar}
+                    className="text-xs text-red-500 text-left hover:text-red-400 transition"
+                  >
+                    Remove picture
+                  </button>
+                )}
+              </div>
+            </div>
+          </Section>
+        </FadeUp>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">Profile</h2>
+        {/* Account details */}
+        <FadeUp delay={0.08}>
+          <Section title="Account details">
             <form onSubmit={save} className="space-y-4">
               <div>
-                <label className="block text-xs text-neutral-500 mb-1">Username</label>
-                <input className={inputClass} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs text-neutral-500 mb-1">Email</label>
-                <input className={inputClass} type="email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} />
-              </div>
-              <div>
-                <label className="block text-xs text-neutral-500 mb-1">About</label>
-                <input className={inputClass} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="No about me" />
-              </div>
-
-              <div className="pt-2 border-t border-neutral-100 dark:border-white/5">
-                <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-3">Change password</p>
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-xs text-neutral-500 mb-1">Current password</label>
-                    <input className={inputClass} type="password" value={form.currentPassword} onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="••••••••" />
-                  </div>
-                  <div>
-                    <label className="block text-xs text-neutral-500 mb-1">New password <span className="text-neutral-400">(leave blank to keep)</span></label>
-                    <input className={inputClass} type="password" value={form.newPassword} onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="••••••••" />
-                  </div>
-                </div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Username
+                </label>
+                <input
+                  className={inputClass}
+                  value={form.username}
+                  onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                  placeholder={fullUser.username}
+                />
               </div>
 
-              <button type="submit" disabled={saving}
-                className="px-5 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
-                {saving ? 'Saving...' : 'Save changes'}
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Email
+                </label>
+                <input
+                  className={inputClass}
+                  type="email"
+                  value={form.email}
+                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder={fullUser.email}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  className={inputClass + ' resize-none'}
+                  value={form.description}
+                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                  placeholder="No description set"
+                />
+              </div>
+
+              <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 space-y-3">
+                <p className="text-xs font-medium text-neutral-800 dark:text-white">Change password</p>
+                <input
+                  className={inputClass}
+                  type="password"
+                  value={form.currentPassword}
+                  onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))}
+                  placeholder="Current password"
+                />
+                <input
+                  className={inputClass}
+                  type="password"
+                  value={form.newPassword}
+                  onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))}
+                  placeholder="New password"
+                  disabled={!form.currentPassword}
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
+              >
+                {saving ? 'Saving…' : 'Save changes'}
               </button>
             </form>
-          </div>
+          </Section>
+        </FadeUp>
 
-          <div>
-            <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">Login history</h2>
-            <div className="space-y-2">
-              {fullUser.loginHistory.length === 0
-                ? <p className="text-sm text-neutral-400">No login history.</p>
-                : fullUser.loginHistory.map(entry => (
-                  <div key={entry.id} className="rounded-lg border border-neutral-200 dark:border-white/5 px-3 py-2.5 bg-neutral-50 dark:bg-neutral-800/20">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-mono text-neutral-600 dark:text-neutral-400">{entry.ipAddress || 'Unknown IP'}</span>
-                      <span className="text-[10px] text-neutral-400">{new Date(entry.timestamp).toLocaleString()}</span>
-                    </div>
-                    {entry.userAgent && <p className="text-[11px] text-neutral-400 mt-0.5 truncate">{entry.userAgent}</p>}
+        {/* Login history */}
+        <FadeUp delay={0.12}>
+          <Section title="Login history">
+            {fullUser.loginHistory.length === 0 ? (
+              <p className="text-sm text-neutral-400 text-center py-4">No login history available.</p>
+            ) : (
+              <div className="space-y-2">
+                {fullUser.loginHistory.map(entry => (
+                  <div
+                    key={entry.id}
+                    className="rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 px-3 py-2.5"
+                  >
+                    <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">
+                      {new Date(entry.timestamp).toLocaleString()}
+                    </p>
+                    <p className="text-[11px] text-neutral-500 font-mono mt-0.5">
+                      {entry.ipAddress || 'Unknown IP'}
+                    </p>
+                    {entry.userAgent && (
+                      <p className="text-[11px] text-neutral-400 truncate mt-0.5">{entry.userAgent}</p>
+                    )}
                   </div>
                 ))}
-            </div>
-          </div>
-        </div>
+              </div>
+            )}
+          </Section>
+        </FadeUp>
+
       </div>
     </PanelLayout>
   )

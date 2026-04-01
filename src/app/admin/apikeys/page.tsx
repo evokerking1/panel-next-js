@@ -75,16 +75,20 @@ export default function AdminApiKeysPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto pt-16">
+      <div className="flex-1 p-6 overflow-y-auto">
 
         <div className="sm:flex sm:items-center px-8 pt-4">
           <FadeUp className="sm:flex-auto">
             <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">API Keys Management</h1>
             <p className="mt-1 tracking-tight text-sm text-neutral-500">Create and manage API keys with specific permissions</p>
           </FadeUp>
-          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-2">
+            <a href="/admin/apikeys/docs"
+              className="rounded-xl border border-neutral-200 dark:border-neutral-700/40 bg-white dark:bg-white/5 hover:bg-neutral-50 dark:hover:bg-white/10 text-neutral-700 dark:text-neutral-300 px-3 py-2 text-sm font-medium transition">
+              API Docs
+            </a>
             <button onClick={() => setCreateOpen(true)} type="button"
-              className="w-full md:w-auto rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition">
+              className="rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition">
               Create API Key
             </button>
           </FadeUp>

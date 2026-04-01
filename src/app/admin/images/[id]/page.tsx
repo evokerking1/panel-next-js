@@ -107,7 +107,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
   return (
     <PanelLayout>
-      <div className="flex-1 overflow-y-auto pt-16 pb-12">
+      <div className="flex-1 overflow-y-auto pb-12">
         <div className="px-8 pt-5 flex items-start justify-between">
           <FadeUp>
             <h1 className="text-base font-medium text-neutral-800 dark:text-white">{fields.name || 'Edit Image'}</h1>

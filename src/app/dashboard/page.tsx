@@ -6,7 +6,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import Modal from '@/components/ui/Modal'
 import { useAuth } from '@/hooks/useAuth'
-import { FadeUp } from '@/components/ui/Animate'
+import { FadeUp, AnimatedList, AnimatePresence, LayoutGroup } from '@/components/ui/Animate'
 
 interface Server {
   UUID: string
@@ -230,8 +230,8 @@ function DashboardInner() {
           <p className="text-sm text-neutral-500 mt-0.5">Manage and monitor your servers</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {user?.isAdmin && (
-            <Link href="/admin/servers/create" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
+          {!user?.isAdmin && (
+            <Link href="/create-server" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" /></svg>
               New server
             </Link>
@@ -263,9 +263,9 @@ function DashboardInner() {
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-16 w-16 text-neutral-200 dark:text-neutral-700 mb-4"><path fillRule="evenodd" d="M11.622 1.602a.75.75 0 0 1 .756 0l2.25 1.313a.75.75 0 0 1-.756 1.295L12 3.118 10.128 4.21a.75.75 0 1 1-.756-1.295l2.25-1.313Z" clipRule="evenodd" /></svg>
           <h2 className="text-base font-medium text-neutral-800 dark:text-white">No servers yet</h2>
           <p className="text-sm text-neutral-500 mt-1">
-            {user?.isAdmin
-              ? <><Link href="/admin/servers/create" className="text-blue-500 hover:underline">Create one</Link> to get started.</>
-              : 'An admin will assign servers to you.'}
+            {!user?.isAdmin
+              ? <><Link href="/create-server" className="text-blue-500 hover:underline">Create one</Link> to get started.</>
+              : 'Servers you manage will appear here.'}
           </p>
         </div>
       ) : (
@@ -273,19 +273,20 @@ function DashboardInner() {
           {folders.length > 0 && (
             <div className="mb-8">
               <p className="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-3">Folders</p>
-              <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+              <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
                 {folders.map(f => <FolderCard key={f.id} folder={f} onDrop={handleDropOnFolder} onClick={setActiveFolder} />)}
-              </div>
+              </AnimatedList>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">Drag a server onto a folder to add it</p>
             </div>
           )}
 
           <p className="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-3">Servers</p>
 
+          <LayoutGroup>
           {view === 'grid' ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
               {serversNotInFolder.map(s => <ServerCard key={s.UUID} server={s} onDragStart={handleDragStart} />)}
-            </div>
+            </AnimatedList>
           ) : (
             <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-x-auto shadow-sm mb-6">
               <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/5">
@@ -312,6 +313,7 @@ function DashboardInner() {
               </table>
             </div>
           )}
+          </LayoutGroup>
         </>
       )}
 

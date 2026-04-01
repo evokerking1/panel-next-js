@@ -192,7 +192,7 @@ export default function AdminAnalyticsPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 overflow-y-auto pt-16">
+      <div className="flex-1 overflow-y-auto">
         <div className="px-8 pt-5 pb-8">
           <div className="flex items-center justify-between mb-6">
             <div>

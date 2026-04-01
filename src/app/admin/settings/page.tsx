@@ -151,7 +151,7 @@ export default function AdminSettingsPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 overflow-y-auto pt-16 pb-12">
+      <div className="flex-1 overflow-y-auto pb-12">
         <div className="px-8 pt-5">
           <h1 className="text-base font-medium text-neutral-800 dark:text-white">Settings</h1>
           <p className="mt-0.5 text-sm text-neutral-500">Manage your panel configuration.</p>

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
-import { FadeUp } from '@/components/ui/Animate'
+import { FadeUp, AnimatedList } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 
 interface User {
@@ -50,7 +50,7 @@ export default function AdminUsersPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto pt-16">
+      <div className="flex-1 p-6 overflow-y-auto">
 
         <div className="sm:flex sm:items-center px-8 pt-4">
           <FadeUp className="sm:flex-auto">

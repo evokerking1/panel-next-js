@@ -44,101 +44,141 @@ const themeScript = `
 })();
 `
 
-// Dynamic FLIP animation engine — no hardcoded selectors.
-// Observes #page-content and #server-page-body.
-// Any child that shifts position after a DOM change gets a smooth tween.
+// FLIP animation engine — observes #page-content and #server-page-body.
+// Siblings that shift when items are added/removed/reordered get a spring tween.
 const flipScript = `
 (function(){
-  var MOVE_MS=340, EASE='cubic-bezier(0.4,0,0.2,1)';
-  var animating=new WeakSet();
+  var MOVE_MS = 420;
+  var EASE    = 'cubic-bezier(0.34, 1.56, 0.64, 1)'; // spring overshoot feel
+  var animating = new WeakSet();
 
-  var SKIP_TAGS=new Set(['CANVAS','SVG','IMG','BUTTON','INPUT','SELECT','SCRIPT','STYLE','A']);
-  var SKIP_FRAGS=['mobile-top-bar','mobile-bottom-nav','mobile-more-sheet',
-                  'animate-spin','nav-link','no-anim','collapsible-row'];
-  var SKIP_IDS=new Set(['pl-overlay','pl-bar','active-background']);
+  var SKIP_TAGS  = new Set(['CANVAS','SVG','IMG','BUTTON','INPUT','SELECT','SCRIPT','STYLE','A']);
+  var SKIP_FRAGS = ['mobile-top-bar','mobile-bottom-nav','mobile-more-sheet',
+                    'animate-spin','nav-link','no-anim','collapsible-row'];
+  var SKIP_IDS   = new Set(['pl-overlay','pl-bar','active-background']);
 
-  function shouldSkip(el){
-    if(!el||el.nodeType!==1)return true;
-    if(SKIP_TAGS.has(el.tagName))return true;
-    var cls=el.className||'';
-    for(var i=0;i<SKIP_FRAGS.length;i++){if(cls.indexOf(SKIP_FRAGS[i])!==-1)return true;}
-    if(SKIP_IDS.has(el.id))return true;
-    try{if(window.getComputedStyle(el).position==='fixed')return true;}catch(_){}
+  function shouldSkip(el) {
+    if (!el || el.nodeType !== 1) return true;
+    if (SKIP_TAGS.has(el.tagName)) return true;
+    var cls = el.className || '';
+    for (var i = 0; i < SKIP_FRAGS.length; i++) {
+      if (cls.indexOf(SKIP_FRAGS[i]) !== -1) return true;
+    }
+    if (SKIP_IDS.has(el.id)) return true;
+    try { if (window.getComputedStyle(el).position === 'fixed') return true; } catch (_) {}
     return false;
   }
 
-  function snapshot(parent){
-    if(!parent)return new Map();
-    var m=new Map();
-    Array.from(parent.children).forEach(function(ch){
-      if(!shouldSkip(ch)&&!animating.has(ch))m.set(ch,ch.getBoundingClientRect());
+  function snapshot(parent) {
+    if (!parent) return new Map();
+    var m = new Map();
+    // Snapshot all descendants, not just direct children, for richer coverage
+    var els = parent.querySelectorAll(':scope > *');
+    els.forEach(function(ch) {
+      if (!shouldSkip(ch) && !animating.has(ch)) m.set(ch, ch.getBoundingClientRect());
     });
     return m;
   }
 
-  function flip(snap){
-    snap.forEach(function(first,el){
-      if(animating.has(el))return;
-      var last=el.getBoundingClientRect();
-      var dy=first.top-last.top, dx=first.left-last.left;
-      if(Math.abs(dy)<1&&Math.abs(dx)<1)return;
+  function flip(snap) {
+    snap.forEach(function(first, el) {
+      if (animating.has(el)) return;
+      var last = el.getBoundingClientRect();
+      var dy = first.top - last.top;
+      var dx = first.left - last.left;
+      var dw = first.width - last.width;
+      var dh = first.height - last.height;
+      if (Math.abs(dy) < 1.5 && Math.abs(dx) < 1.5 && Math.abs(dw) < 2 && Math.abs(dh) < 2) return;
+
       animating.add(el);
+
+      // Scale AND translate for a more dynamic feel
+      var scaleX = last.width  > 0 ? first.width  / last.width  : 1;
+      var scaleY = last.height > 0 ? first.height / last.height : 1;
+      var fromTransform = 'translate(' + dx + 'px,' + dy + 'px) scale(' + scaleX + ',' + scaleY + ')';
+
       el.animate(
-        [{transform:'translate('+dx+'px,'+dy+'px)'},{transform:'translate(0,0)'}],
-        {duration:MOVE_MS,easing:EASE}
+        [
+          { transform: fromTransform, opacity: 0.85 },
+          { transform: 'translate(0,0) scale(1)', opacity: 1 }
+        ],
+        { duration: MOVE_MS, easing: EASE, fill: 'both' }
       ).finished
-        .then(function(){animating.delete(el);})
-        .catch(function(){animating.delete(el);});
+        .then(function() { animating.delete(el); })
+        .catch(function() { animating.delete(el); });
     });
   }
 
-  var mo=new MutationObserver(function(mutations){
-    mutations.forEach(function(m){
-      if(m.type==='childList'){
-        var s=snapshot(m.target);
-        requestAnimationFrame(function(){flip(s);});
-      }
-      if(m.type==='attributes'){
-        var el=m.target;
-        if(shouldSkip(el))return;
-        if(el.closest&&el.closest('.no-anim'))return;
-        var s2=snapshot(el.parentElement);
-        requestAnimationFrame(function(){flip(s2);});
+  var pendingFlips = new Map(); // target -> snap, deduplicated per frame
+
+  function scheduleFlip(target) {
+    if (!target || target.nodeType !== 1) return;
+    if (!pendingFlips.has(target)) {
+      pendingFlips.set(target, snapshot(target));
+      requestAnimationFrame(function() {
+        var snap = pendingFlips.get(target);
+        pendingFlips.delete(target);
+        if (snap) flip(snap);
+      });
+    }
+  }
+
+  var mo = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      if (m.type === 'childList') scheduleFlip(m.target);
+      if (m.type === 'attributes') {
+        var el = m.target;
+        if (!shouldSkip(el) && !(el.closest && el.closest('.no-anim'))) {
+          scheduleFlip(el.parentElement);
+        }
       }
     });
   });
 
-  var OBS={childList:true,subtree:true,attributes:true,attributeFilter:['class','style','hidden']};
+  var OBS = { childList: true, subtree: true, attributes: true,
+               attributeFilter: ['class', 'style', 'hidden'] };
 
-  function attach(){
-    var pc=document.getElementById('page-content');
-    var spb=document.getElementById('server-page-body');
-    if(pc)mo.observe(pc,OBS);
-    if(spb)mo.observe(spb,OBS);
+  function attach() {
+    var pc  = document.getElementById('page-content');
+    var spb = document.getElementById('server-page-body');
+    if (pc)  mo.observe(pc,  OBS);
+    if (spb) mo.observe(spb, OBS);
   }
 
-  if(document.readyState==='loading'){
-    document.addEventListener('DOMContentLoaded',attach);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
   } else {
     attach();
   }
 
-  document.addEventListener('al:navigated',function(){setTimeout(attach,60);});
+  document.addEventListener('al:navigated', function() { setTimeout(attach, 60); });
 
-  window.airlinkAnimate=function(el,opts){
-    if(!el||el.nodeType!==1)return;
+  // Public helpers for imperative animations elsewhere
+  window.airlinkAnimate = function(el, opts) {
+    if (!el || el.nodeType !== 1) return;
     el.animate(
-      [{opacity:0,transform:'translateY(8px)'},{opacity:1,transform:'translateY(0)'}],
-      {duration:(opts&&opts.duration)||260,delay:(opts&&opts.delay)||0,
-       easing:'cubic-bezier(0.4,0,0.2,1)',fill:'backwards'}
+      [
+        { opacity: 0, transform: 'translateY(10px) scale(0.97)' },
+        { opacity: 1, transform: 'translateY(0)   scale(1)' }
+      ],
+      {
+        duration: (opts && opts.duration) || 300,
+        delay:    (opts && opts.delay)    || 0,
+        easing:   'cubic-bezier(0.34, 1.56, 0.64, 1)',
+        fill:     'backwards'
+      }
     );
   };
 
-  window.airlinkAnimateChildren=function(c,opts){
-    if(!c||c.nodeType!==1)return;
-    var base=(opts&&opts.baseDelay)||0, stagger=(opts&&opts.stagger)||40;
-    Array.from(c.children).forEach(function(ch,i){
-      window.airlinkAnimate(ch,{duration:(opts&&opts.duration)||260,delay:base+i*stagger});
+  window.airlinkAnimateChildren = function(c, opts) {
+    if (!c || c.nodeType !== 1) return;
+    var base    = (opts && opts.baseDelay) || 0;
+    var stagger = (opts && opts.stagger)   || 45;
+    Array.from(c.children).forEach(function(ch, i) {
+      window.airlinkAnimate(ch, {
+        duration: (opts && opts.duration) || 300,
+        delay:    base + i * stagger
+      });
     });
   };
 })();

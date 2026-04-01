@@ -180,7 +180,6 @@ html, body {
 }
 
 /* ── Never animate chrome, canvas, or fixed elements ──────────── */
-canvas,
 #terminal,
 #terminal *,
 .animate-spin,
@@ -196,5 +195,10 @@ canvas,
 #active-background,
 svg,
 img {
+  transition: none !important;
+}
+
+/* Canvas FLIP suppression — only block layout transitions, not opacity */
+canvas:not(.credits-canvas) {
   transition: none !important;
 }

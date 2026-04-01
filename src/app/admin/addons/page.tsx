@@ -67,7 +67,7 @@ export default function AdminAddonsPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto pt-16">
+      <div className="flex-1 p-6 overflow-y-auto">
 
         <div className="sm:flex sm:items-center px-8 pt-4">
           <FadeUp className="sm:flex-auto">

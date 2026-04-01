@@ -90,8 +90,13 @@ export default function ImageStorePage() {
   useEffect(() => { loadCatalogue() }, [])
 
   const filtered = images.filter(img => {
-    const matchSearch = !search || img.name.toLowerCase().includes(search.toLowerCase())
-    const matchView = view === 'all' || (img.category || 'generic') === view
+    const q = search.toLowerCase()
+    const matchSearch = !search ||
+      img.name.toLowerCase().includes(q) ||
+      (img.description || '').toLowerCase().includes(q) ||
+      (img.author || '').toLowerCase().includes(q)
+    const imgCategory = (img.category || '').toLowerCase()
+    const matchView = view === 'all' || imgCategory === view
     return matchSearch && matchView
   })
 
@@ -104,7 +109,7 @@ export default function ImageStorePage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 overflow-y-auto pt-16">
+      <div className="flex-1 overflow-y-auto">
         <div className="px-8 pt-5 pb-8">
 
           <div className="flex items-start justify-between gap-4 mb-6">

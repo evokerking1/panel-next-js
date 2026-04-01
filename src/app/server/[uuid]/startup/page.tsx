@@ -107,7 +107,7 @@ function Inner({ uuid }: { uuid: string }) {
   const allDockerOptions = dockerImages.flatMap(obj => Object.entries(obj).map(([label, image]) => ({ label, image })))
 
   return (
-    <div className="px-4 sm:px-8 pb-8 space-y-6">
+    <div className="px-4 sm:px-8 pt-4 pb-8 space-y-6">
       {/* Startup command */}
       <form onSubmit={saveCommand} className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5">
         <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">Startup Command</h2>
