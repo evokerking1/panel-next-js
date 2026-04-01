@@ -4,88 +4,164 @@ import { useState, useEffect } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
+import Modal from '@/components/ui/Modal'
 
 interface Addon {
   id: number
   name: string
   slug: string
-  description?: string
-  version: string
+  version?: string
   author?: string
+  description?: string
   enabled: boolean
-  createdAt: string
 }
 
 export default function AdminAddonsPage() {
-  useAuth({ require: true, adminOnly: true })
+  const { user } = useAuth({ require: true, adminOnly: true })
   const { showToast } = useToastContext()
   const [addons, setAddons] = useState<Addon[]>([])
   const [loading, setLoading] = useState(true)
+  const [deleteTarget, setDeleteTarget] = useState<Addon | null>(null)
+  const [search, setSearch] = useState('')
 
-  useEffect(() => {
+  function load() {
+    setLoading(true)
     fetch('/api/admin/addons')
       .then(r => r.json())
       .then(d => setAddons(d.addons || []))
-      .catch(() => {})
+      .catch(() => showToast('Failed to load addons', 'error'))
       .finally(() => setLoading(false))
-  }, [])
+  }
 
-  async function toggleAddon(addon: Addon) {
+  useEffect(() => { load() }, [])
+
+  async function toggleEnabled(addon: Addon) {
     const res = await fetch(`/api/admin/addons/${addon.id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !addon.enabled }),
     })
     if (res.ok) {
       setAddons(prev => prev.map(a => a.id === addon.id ? { ...a, enabled: !a.enabled } : a))
-      showToast(`${addon.name} ${addon.enabled ? 'disabled' : 'enabled'}.`, 'success')
+    } else {
+      showToast('Failed to update addon.', 'error')
     }
   }
 
+  async function handleDelete() {
+    if (!deleteTarget) return
+    const res = await fetch(`/api/admin/addons/${deleteTarget.id}`, { method: 'DELETE' })
+    if (res.ok) {
+      setAddons(prev => prev.filter(a => a.id !== deleteTarget.id))
+      showToast('Addon deleted.', 'success')
+    } else {
+      showToast('Failed to delete addon.', 'error')
+    }
+    setDeleteTarget(null)
+  }
+
+  const filtered = addons.filter(a =>
+    !search || `${a.name} ${a.description || ''} ${a.author || ''}`.toLowerCase().includes(search.toLowerCase())
+  )
+
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-        <div className="mb-6">
-          <h1 className="text-base font-medium text-neutral-800 dark:text-white">Addons</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Manage installed panel addons</p>
+      <div className="flex-1 p-6 overflow-y-auto pt-16">
+
+        <div className="sm:flex sm:items-center px-8 pt-4">
+          <FadeUp className="sm:flex-auto">
+            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Addons</h1>
+            <p className="mt-1 tracking-tight text-sm text-neutral-500">Manage installed addons and browse the store</p>
+          </FadeUp>
+          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none flex gap-2">
+            <button onClick={load} type="button"
+              className="border border-neutral-800/20 rounded-xl bg-white hover:bg-neutral-200 dark:hover:bg-neutral-300 text-neutral-800 px-3 py-2 text-sm font-medium shadow-lg transition">
+              Reload
+            </button>
+          </FadeUp>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center h-32">
-            <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        <FadeUp delay={0.08}>
+          <div className="mx-8 mt-6 flex border-b border-neutral-200 dark:border-neutral-800">
+            <span className="px-1 py-2.5 mr-5 text-sm font-medium text-neutral-800 dark:text-white border-b-2 border-neutral-800 dark:border-white -mb-px">
+              Installed <span className="ml-1 text-xs text-neutral-400">{addons.length}</span>
+            </span>
           </div>
-        ) : addons.length === 0 ? (
-          <div className="rounded-xl border border-neutral-200 dark:border-white/5 py-16 text-center">
-            <p className="text-sm text-neutral-500">No addons installed.</p>
-            <p className="text-xs text-neutral-400 mt-1">Place addon folders in <code className="font-mono text-neutral-500">storage/addons/</code> and restart the panel.</p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {addons.map(addon => (
-              <div key={addon.id} className="bg-white dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-4 flex items-start justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-medium text-neutral-900 dark:text-white">{addon.name}</h3>
-                    <span className="text-[10px] font-mono text-neutral-400">v{addon.version}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${addon.enabled ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500'}`}>
-                      {addon.enabled ? 'Enabled' : 'Disabled'}
-                    </span>
-                  </div>
-                  {addon.description && <p className="text-xs text-neutral-500 mt-0.5">{addon.description}</p>}
-                  {addon.author && <p className="text-xs text-neutral-400 mt-0.5">by {addon.author}</p>}
-                </div>
-                <button onClick={() => toggleAddon(addon)}
-                  className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-                    addon.enabled
-                      ? 'border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5'
-                      : 'border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'
-                  }`}>
-                  {addon.enabled ? 'Disable' : 'Enable'}
-                </button>
-              </div>
-            ))}
-          </div>
+        </FadeUp>
+
+        {addons.length > 0 && (
+          <FadeUp delay={0.09}>
+            <div className="mx-8 mt-5 mb-1">
+              <input value={search} onChange={e => setSearch(e.target.value)}
+                type="text" placeholder="Filter addons…"
+                className="w-56 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 px-3 py-2 text-sm text-neutral-800 dark:text-white placeholder-neutral-400 dark:placeholder-neutral-500 focus:outline-none focus:border-neutral-400 dark:focus:border-neutral-600 transition" />
+            </div>
+          </FadeUp>
         )}
+
+        <FadeUp delay={0.1}>
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+            </div>
+          ) : addons.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center mx-8">
+              <p className="text-sm text-neutral-500">No addons installed.</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40">
+              <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/10">
+                <thead className="bg-neutral-50 dark:bg-neutral-800/50">
+                  <tr>
+                    <th className="py-3.5 pl-6 pr-3 text-left text-sm font-medium text-neutral-800 dark:text-white">Name</th>
+                    <th className="px-3 py-3.5 text-left text-sm font-medium text-neutral-800 dark:text-white">Version</th>
+                    <th className="px-3 py-3.5 text-left text-sm font-medium text-neutral-800 dark:text-white">Status</th>
+                    <th className="px-3 py-3.5 text-left text-sm font-medium text-neutral-800 dark:text-white">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-neutral-100 dark:divide-white/5 bg-white dark:bg-neutral-800/20">
+                  {filtered.map(addon => (
+                    <tr key={addon.id} className="hover:bg-neutral-50 dark:hover:bg-white/[0.05] transition-colors">
+                      <td className="whitespace-nowrap py-4 pl-6 pr-3 text-sm">
+                        <p className="font-medium text-neutral-800 dark:text-white">{addon.name}</p>
+                        {addon.description && <p className="text-xs text-neutral-500 mt-0.5 truncate max-w-xs">{addon.description}</p>}
+                      </td>
+                      <td className="px-3 py-4 text-sm text-neutral-500 dark:text-neutral-400">{addon.version || '—'}</td>
+                      <td className="px-3 py-4 text-sm">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                          addon.enabled
+                            ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
+                            : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700/40'
+                        }`}>
+                          {addon.enabled ? 'Enabled' : 'Disabled'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-4 text-sm">
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => toggleEnabled(addon)}
+                            className="text-xs text-blue-500 hover:text-blue-600 transition">
+                            {addon.enabled ? 'Disable' : 'Enable'}
+                          </button>
+                          <button onClick={() => setDeleteTarget(addon)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </FadeUp>
+
+        <Modal open={!!deleteTarget} title="Delete addon?"
+          body={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
+          confirmLabel="Delete" danger
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)} />
       </div>
     </PanelLayout>
   )

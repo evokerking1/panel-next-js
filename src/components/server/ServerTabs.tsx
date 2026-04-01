@@ -98,29 +98,59 @@ export default function ServerTabs({ uuid, features = [] }: TabsProps) {
   })
 
   return (
-    <div className="mt-6 ml-8 mb-4">
-      <nav className="hidden sm:flex">
-        <ul role="list" className="flex min-w-full mt-1.5 flex-none gap-x-2 text-sm font-normal leading-6 text-neutral-600 dark:text-neutral-400">
+    <>
+      {/* ── Mobile: scrollable compact strip ── */}
+      <div className="sm:hidden overflow-x-auto border-b border-neutral-200 dark:border-white/5 mb-4 -mx-4 px-4">
+        <nav className="flex gap-1 min-w-max pb-1">
           {visibleTabs.map(tab => {
             const href = `${base}${tab.path}`
             const active = tab.path === ''
               ? pathname === base || pathname === `${base}/`
               : pathname.startsWith(href)
             return (
-              <li key={tab.label} className="transition flex-shrink-0">
-                <Link
-                  href={href}
-                  className="nav-link2 py-2 px-3 transition border hover:bg-neutral-100 dark:hover:bg-white/5 border-transparent hover:text-neutral-900 dark:hover:text-white hover:shadow rounded-xl"
-                  data-active={active ? 'true' : 'false'}
-                >
-                  {tab.icon}
-                  {tab.label}
-                </Link>
-              </li>
+              <Link
+                key={tab.label}
+                href={href}
+                className={`nav-link2 px-3 py-2 text-xs font-medium rounded-lg border whitespace-nowrap transition ${
+                  active
+                    ? 'bg-neutral-100 dark:bg-white/10 border-neutral-200 dark:border-neutral-700/30 text-neutral-900 dark:text-white font-medium'
+                    : 'border-transparent text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-white/5 hover:text-neutral-900 dark:hover:text-white'
+                }`}
+                data-active={active ? 'true' : 'false'}
+              >
+                {tab.label}
+              </Link>
             )
           })}
-        </ul>
-      </nav>
-    </div>
+        </nav>
+      </div>
+
+      {/* ── Desktop: icon + label tabs ── */}
+      <div className="hidden sm:block mt-6 ml-8 mb-4">
+        <nav className="flex">
+          <ul role="list" className="flex min-w-full mt-1.5 flex-none gap-x-2 text-sm font-normal leading-6 text-neutral-600 dark:text-neutral-400">
+            {visibleTabs.map(tab => {
+              const href = `${base}${tab.path}`
+              const active = tab.path === ''
+                ? pathname === base || pathname === `${base}/`
+                : pathname.startsWith(href)
+              return (
+                <li key={tab.label} className="transition flex-shrink-0">
+                  <Link
+                    href={href}
+                    className="nav-link2 py-2 px-3 transition border hover:bg-neutral-100 dark:hover:bg-white/5 border-transparent hover:text-neutral-900 dark:hover:text-white hover:shadow rounded-xl"
+                    data-active={active ? 'true' : 'false'}
+                  >
+                    {tab.icon}
+                    {tab.label}
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
+      </div>
+    </>
   )
 }
+// ~ https://github.com/thavanish edited this shitty code

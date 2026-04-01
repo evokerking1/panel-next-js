@@ -5,6 +5,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 import { useRouter } from 'next/navigation'
 
@@ -133,10 +134,13 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
 
   return (
     <PanelLayout>
+      <FadeUp>
       <div className="px-4 sm:px-8 pt-4 pb-2">
         <p className="text-base font-medium text-neutral-800 dark:text-white">Settings</p>
       </div>
+      </FadeUp>
       <ServerTabs uuid={uuid} />
+      <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
         <form onSubmit={saveSettings}>
           <Section title="General" desc="Basic server information.">
@@ -186,6 +190,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
         confirmLabel="Delete" danger
         onConfirm={deleteServer}
         onClose={() => setDeleteOpen(false)} />
+      </FadeUp>
     </PanelLayout>
   )
 }

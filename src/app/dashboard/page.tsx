@@ -6,6 +6,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import Modal from '@/components/ui/Modal'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 
 interface Server {
   UUID: string
@@ -222,6 +223,7 @@ function DashboardInner() {
 
   return (
     <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
+      <FadeUp>
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-base font-medium text-neutral-800 dark:text-white">Servers</h1>
@@ -254,6 +256,7 @@ function DashboardInner() {
           )}
         </div>
       </div>
+      </FadeUp>
 
       {servers.length === 0 && folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center mt-32 text-center">

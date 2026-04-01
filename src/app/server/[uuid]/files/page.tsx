@@ -5,6 +5,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 
 interface FileEntry { name: string; type: 'file' | 'directory'; size?: number; modified?: string }
@@ -117,10 +118,13 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
 
   return (
     <PanelLayout>
+      <FadeUp>
       <div className="px-4 sm:px-8 pt-4">
         <p className="text-base font-medium text-neutral-800 dark:text-white">Files</p>
       </div>
+      </FadeUp>
       <ServerTabs uuid={uuid} />
+      <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
         {editFile ? (
           <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
@@ -216,6 +220,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       <Modal open={!!deleteTarget} title="Delete file?"
         body={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmLabel="Delete" danger onConfirm={deleteFile} onClose={() => setDeleteTarget(null)} />
+      </FadeUp>
     </PanelLayout>
   )
 }

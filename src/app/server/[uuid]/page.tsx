@@ -6,6 +6,7 @@ import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/layout/PanelLayout'
+import { FadeUp } from '@/components/ui/Animate'
 
 interface ServerData {
   UUID: string
@@ -180,6 +181,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
 
   return (
     <PanelLayout>
+      <FadeUp>
       <div className="px-4 sm:px-8 pt-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
@@ -214,9 +216,11 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
           </div>
         </div>
       </div>
+      </FadeUp>
 
       <ServerTabs uuid={uuid} />
 
+      <FadeUp delay={0.08}>
       <div className="flex flex-col lg:flex-row px-4 sm:px-8 mt-4 gap-5 pb-8">
         <div className="w-full lg:w-2/3 flex flex-col min-w-0">
           <div className="flex flex-col rounded-xl overflow-hidden border border-neutral-800 shadow-lg flex-1 console-wrap">
@@ -262,6 +266,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
           <StatsCard title="Disk Limit" value={`${server.Storage} GB`} index={4} />
         </div>
       </div>
+      </FadeUp>
     </PanelLayout>
   )
 }

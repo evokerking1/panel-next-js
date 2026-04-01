@@ -5,6 +5,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 
 interface ServerVariable {
   name: string
@@ -195,11 +196,13 @@ export default function ServerStartupPage({ params }: { params: Promise<{ uuid: 
   useAuth({ require: true })
   return (
     <PanelLayout>
+      <FadeUp>
       <div className="px-4 sm:px-8 pt-4 pb-2">
         <p className="text-base font-medium text-neutral-800 dark:text-white">Startup</p>
       </div>
+      </FadeUp>
       <ServerTabs uuid={uuid} />
-      <div className="mt-4"><Inner uuid={uuid} /></div>
+      <FadeUp delay={0.06}><div className="mt-4"><Inner uuid={uuid} /></div></FadeUp>
     </PanelLayout>
   )
 }

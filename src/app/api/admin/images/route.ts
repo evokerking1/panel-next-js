@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
   }
 
   const { name, description, author, authorName, startup } = body;
-  if (!name || !startup) {
-    return NextResponse.json({ error: 'Name and startup command are required.' }, { status: 400 });
+  if (!name) {
+    return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
   }
 
   const image = await prisma.images.create({
@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
       description: description || '',
       author: author || '',
       authorName: authorName || '',
-      startup,
+      startup: startup || '',
       stop: 'stop',
       startup_done: '',
       config_files: '',
@@ -87,5 +87,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ success: true, id: image.id });
+  return NextResponse.json({ success: true, image });
 }

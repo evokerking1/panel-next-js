@@ -1,30 +1,37 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
-import Link from 'next/link'
+import { FadeUp } from '@/components/ui/Animate'
 
-export default function CreateUserPage() {
-  useAuth({ require: true, adminOnly: true })
+const inputClass = "rounded-xl text-neutral-800 dark:text-white text-sm w-full px-4 py-2 bg-neutral-400/10 dark:bg-neutral-600/20 placeholder:text-neutral-950/50 dark:placeholder:text-white/20 border border-neutral-800/10 dark:border-white/5 focus:outline-none focus:ring-1 focus:ring-neutral-300 dark:focus:ring-white/20"
+
+export default function AdminUserCreatePage() {
+  const { user } = useAuth({ require: true, adminOnly: true })
   const { showToast } = useToastContext()
   const router = useRouter()
-  const [creating, setCreating] = useState(false)
-  const [form, setForm] = useState({ email: '', username: '', password: '', isAdmin: false })
 
-  function set(key: string, value: string | boolean) {
-    setForm(f => ({ ...f, [key]: value }))
+  const [form, setForm] = useState({ email: '', username: '', password: '', isAdmin: false })
+  const [saving, setSaving] = useState(false)
+
+  function setField(k: string, v: string | boolean) {
+    setForm(f => ({ ...f, [k]: v }))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setCreating(true)
+  async function handleCreate() {
+    if (!form.email || !form.username || !form.password) {
+      showToast('Please fill in all required fields', 'error')
+      return
+    }
+    setSaving(true)
     const res = await fetch('/api/admin/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, isAdmin: String(form.isAdmin) }),
+      body: JSON.stringify(form),
     })
     const d = await res.json()
     if (res.ok) {
@@ -32,66 +39,66 @@ export default function CreateUserPage() {
       router.push('/admin/users')
     } else {
       showToast(d.error || 'Failed to create user.', 'error')
-      setCreating(false)
     }
+    setSaving(false)
   }
-
-  const inputClass = 'w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition'
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8 max-w-xl">
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/admin/users" className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Create user</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Add a new user account</p>
-          </div>
+      <div className="flex-1 p-6 overflow-y-auto pt-16">
+        <div className="sm:flex sm:items-center px-8 pt-4">
+          <FadeUp className="sm:flex-auto">
+            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Create User</h1>
+            <p className="mt-1 tracking-tight text-sm text-neutral-500">Create a new user account.</p>
+          </FadeUp>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Email</label>
-            <input type="email" required placeholder="user@example.com"
-              value={form.email} onChange={e => set('email', e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Username</label>
-            <input type="text" required placeholder="username"
-              value={form.username} onChange={e => set('username', e.target.value)} className={inputClass} />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-neutral-500 mb-1.5">Password</label>
-            <input type="password" required placeholder="••••••••"
-              value={form.password} onChange={e => set('password', e.target.value)} className={inputClass} />
-          </div>
-          <div className="flex items-center justify-between py-3 border-t border-neutral-200 dark:border-white/5">
-            <div>
-              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Admin access</p>
-              <p className="text-xs text-neutral-500 mt-0.5">Give this user full admin privileges.</p>
-            </div>
-            <button type="button"
-              onClick={() => set('isAdmin', !form.isAdmin)}
-              className={`relative w-10 h-5 rounded-full transition-colors ${form.isAdmin ? 'bg-neutral-900 dark:bg-white' : 'bg-neutral-300 dark:bg-neutral-600'}`}>
-              <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white dark:bg-neutral-900 rounded-full shadow transition-transform ${form.isAdmin ? 'translate-x-5' : ''}`} />
-            </button>
-          </div>
+        <FadeUp delay={0.06}>
+          <div id="userForm" className="mt-6 px-8 w-full">
+            <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl p-5 border border-neutral-200 dark:border-white/5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
 
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={creating}
-              className="px-4 py-2 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
-              {creating ? 'Creating…' : 'Create user'}
-            </button>
-            <Link href="/admin/users"
-              className="px-4 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
-              Cancel
-            </Link>
+                <div>
+                  <label className="block text-neutral-700 dark:text-neutral-400 text-sm font-medium mb-2">Email:</label>
+                  <input type="email" className={inputClass} placeholder="example@domain.com"
+                    value={form.email} onChange={e => setField('email', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="block text-neutral-700 dark:text-neutral-400 text-sm font-medium mb-2">Username:</label>
+                  <input type="text" className={inputClass} placeholder="username"
+                    value={form.username} onChange={e => setField('username', e.target.value)} />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-neutral-700 dark:text-neutral-400 text-sm font-medium mb-2">Password:</label>
+                  <input type="password" className={inputClass} placeholder="••••••••"
+                    value={form.password} onChange={e => setField('password', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="block text-neutral-700 dark:text-neutral-400 text-sm font-medium mb-2">Admin:</label>
+                  <div className="flex items-center mt-1">
+                    <label className="relative inline-block w-12 h-6">
+                      <input type="checkbox" className="sr-only peer"
+                        checked={form.isAdmin} onChange={e => setField('isAdmin', e.target.checked)} />
+                      <span className="block w-12 h-6 bg-neutral-400 peer-checked:bg-blue-500 rounded-full transition-colors" />
+                      <span className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full peer-checked:translate-x-6 transition-transform" />
+                    </label>
+                    <span className="ml-3 text-sm text-neutral-500 dark:text-neutral-400">Admin access</span>
+                  </div>
+                </div>
+
+                <div className="sm:col-span-2 flex justify-end">
+                  <button onClick={handleCreate} disabled={saving}
+                    className="rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-700 dark:hover:bg-neutral-200 text-white dark:text-neutral-800 px-5 py-2 text-sm font-medium shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed">
+                    {saving ? 'Creating...' : 'Create'}
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </form>
+        </FadeUp>
       </div>
     </PanelLayout>
   )

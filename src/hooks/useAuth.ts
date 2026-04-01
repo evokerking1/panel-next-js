@@ -9,6 +9,7 @@ export interface AuthUser {
   username: string
   isAdmin: boolean
   description: string
+  avatar?: string | null
 }
 
 export function useAuth(options?: { require?: boolean; adminOnly?: boolean }) {

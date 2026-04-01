@@ -5,6 +5,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 
 interface Player { name: string; uuid: string }
 

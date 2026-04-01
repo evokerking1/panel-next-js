@@ -5,6 +5,7 @@ import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 
 interface Backup { UUID: string; name: string; size?: number | bigint; createdAt: string; filePath: string }

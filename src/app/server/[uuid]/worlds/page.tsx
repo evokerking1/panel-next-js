@@ -7,6 +7,7 @@ import ServerTabs from '@/components/server/ServerTabs'
 import Modal from '@/components/ui/Modal'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 
 interface World { name: string; type: string }
 

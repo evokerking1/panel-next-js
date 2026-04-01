@@ -1,29 +1,90 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 
 interface LoginEntry { id: number; ipAddress?: string; userAgent?: string; timestamp: string }
-interface FullUser { id: number; email: string; username: string; description?: string; isAdmin: boolean; loginHistory: LoginEntry[] }
+interface FullUser {
+  id: number
+  email: string
+  username: string
+  description?: string
+  isAdmin: boolean
+  avatar?: string | null
+  loginHistory: LoginEntry[]
+}
+
+const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
 
 export default function AccountPage() {
-  const { user } = useAuth({ require: true })
+  const { user, loading: authLoading } = useAuth({ require: true })
   const { showToast } = useToastContext()
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const [fullUser, setFullUser] = useState<FullUser | null>(null)
+  const [avatarSrc, setAvatarSrc] = useState('')
   const [saving, setSaving] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [form, setForm] = useState({ username: '', description: '', email: '', currentPassword: '', newPassword: '' })
 
   useEffect(() => {
     if (!user) return
-    fetch('/api/user/account').then(r => r.json()).then(d => {
-      if (d.user) {
-        setFullUser(d.user)
-        setForm(f => ({ ...f, username: d.user.username || '', description: d.user.description || '', email: d.user.email }))
-      }
-    }).catch(() => {})
+    fetch('/api/user/account')
+      .then(r => r.json())
+      .then(d => {
+        if (d.user) {
+          setFullUser(d.user)
+          setForm(f => ({ ...f, username: d.user.username || '', description: d.user.description || '', email: d.user.email }))
+          updateAvatarSrc(d.user.username, d.user.avatar)
+        }
+      })
+      .catch(() => {})
   }, [user])
+
+  function updateAvatarSrc(username: string, avatar: string | null | undefined) {
+    if (avatar) {
+      setAvatarSrc(avatar.startsWith('/') ? avatar : `/${avatar}`)
+    } else {
+      setAvatarSrc(`https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=525252&color=fff&size=128`)
+    }
+  }
+
+  async function handleAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAvatar(true)
+    const fd = new FormData()
+    fd.append('avatar', file)
+    const res = await fetch('/api/user/avatar', { method: 'POST', body: fd })
+    const d = await res.json()
+    if (res.ok) {
+      setAvatarSrc(d.avatar + '?t=' + Date.now())
+      setFullUser(prev => prev ? { ...prev, avatar: d.avatar } : prev)
+      showToast('Avatar updated.', 'success')
+    } else {
+      showToast(d.error || 'Upload failed.', 'error')
+    }
+    setUploadingAvatar(false)
+    if (fileRef.current) fileRef.current.value = ''
+  }
+
+  async function removeAvatar() {
+    setUploadingAvatar(true)
+    const res = await fetch('/api/user/avatar', { method: 'DELETE' })
+    if (res.ok) {
+      setFullUser(prev => {
+        if (!prev) return prev
+        updateAvatarSrc(prev.username, null)
+        return { ...prev, avatar: null }
+      })
+      showToast('Avatar removed.', 'success')
+    } else {
+      showToast('Failed to remove avatar.', 'error')
+    }
+    setUploadingAvatar(false)
+  }
 
   async function save(e: React.FormEvent) {
     e.preventDefault()
@@ -47,21 +108,17 @@ export default function AccountPage() {
     if (res.ok) {
       showToast('Profile updated.', 'success')
       setForm(f => ({ ...f, currentPassword: '', newPassword: '' }))
+      if (fullUser) updateAvatarSrc(form.username || fullUser.username, fullUser.avatar)
     } else {
       showToast(d.error || 'Failed to update.', 'error')
     }
     setSaving(false)
   }
 
-  const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
-
-  if (!fullUser) return (
+  if (authLoading || !fullUser) return (
     <PanelLayout>
       <div className="flex items-center justify-center h-64">
-        <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
       </div>
     </PanelLayout>
   )
@@ -69,32 +126,59 @@ export default function AccountPage() {
   return (
     <PanelLayout>
       <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-        <div className="mb-6">
-          <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Manage your profile and security</p>
+
+        <div className="flex items-center gap-4 mb-7">
+          <div className="relative shrink-0">
+            <img
+              src={avatarSrc}
+              alt="Avatar"
+              className="h-14 w-14 rounded-xl border border-neutral-200 dark:border-white/10 object-cover"
+            />
+            <label
+              htmlFor="avatar-input"
+              title="Upload photo"
+              className="absolute -bottom-1.5 -right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-neutral-800 dark:bg-white border-2 border-white dark:border-neutral-900 cursor-pointer hover:bg-neutral-700 dark:hover:bg-neutral-200 transition"
+            >
+              {uploadingAvatar ? (
+                <div className="w-2.5 h-2.5 border border-white dark:border-neutral-900 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3 text-white dark:text-neutral-900">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                </svg>
+              )}
+            </label>
+            <input
+              id="avatar-input"
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarChange}
+            />
+            {fullUser.avatar && (
+              <button
+                onClick={removeAvatar}
+                disabled={uploadingAvatar}
+                title="Remove photo"
+                className="absolute -top-1.5 -right-1.5 w-6 h-6 flex items-center justify-center rounded-full bg-red-600 hover:bg-red-500 border-2 border-white dark:border-neutral-900 transition"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2.5" stroke="currentColor" className="w-3 h-3 text-white">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          <div className="min-w-0">
+            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
+            <p className="text-sm text-neutral-500 mt-0.5">Manage your profile and preferences.</p>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           <div>
             <h2 className="text-sm font-semibold text-neutral-700 dark:text-neutral-300 mb-4">Profile</h2>
             <form onSubmit={save} className="space-y-4">
-              <div className="flex items-center gap-4 mb-4">
-                <img
-                  src={`https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(fullUser.username)}`}
-                  className="h-16 w-16 rounded-2xl border border-neutral-200 dark:border-white/10"
-                  alt=""
-                />
-                <div>
-                  <p className="text-sm font-medium text-neutral-800 dark:text-white">{fullUser.username}</p>
-                  <p className="text-xs text-neutral-500">{fullUser.email}</p>
-                  {fullUser.isAdmin && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 dark:bg-purple-500/20 text-purple-600 dark:text-purple-400 mt-1 inline-block">
-                      Admin
-                    </span>
-                  )}
-                </div>
-              </div>
-
               <div>
                 <label className="block text-xs text-neutral-500 mb-1">Username</label>
                 <input className={inputClass} value={form.username} onChange={e => setForm(f => ({ ...f, username: e.target.value }))} />
@@ -122,11 +206,8 @@ export default function AccountPage() {
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-5 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition"
-              >
+              <button type="submit" disabled={saving}
+                className="px-5 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
                 {saving ? 'Saving...' : 'Save changes'}
               </button>
             </form>

@@ -8,6 +8,7 @@ export interface SessionUser {
   username: string;
   isAdmin: boolean;
   description: string;
+  avatar?: string | null;
 }
 
 export interface SessionData {

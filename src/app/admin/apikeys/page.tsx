@@ -4,46 +4,40 @@ import { useState, useEffect } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 
 interface ApiKey {
   id: number
   name: string
-  key: string
   description?: string
-  permissions: string
-  active: boolean
+  key: string
+  createdBy?: { username: string }
+  enabled: boolean
   createdAt: string
-  user?: { username?: string; email: string }
 }
 
-const ALL_PERMISSIONS = [
-  'airlink.api.users.read', 'airlink.api.users.write',
-  'airlink.api.servers.read', 'airlink.api.servers.write',
-  'airlink.api.nodes.read', 'airlink.api.nodes.write',
-  'airlink.api.images.read',
-]
-
 export default function AdminApiKeysPage() {
-  useAuth({ require: true, adminOnly: true })
+  const { user } = useAuth({ require: true, adminOnly: true })
   const { showToast } = useToastContext()
   const [keys, setKeys] = useState<ApiKey[]>([])
   const [loading, setLoading] = useState(true)
   const [createOpen, setCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiKey | null>(null)
-  const [newKey, setNewKey] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [form, setForm] = useState({ name: '', description: '', permissions: [] as string[] })
+  const [form, setForm] = useState({ name: '', description: '' })
+  const [newKey, setNewKey] = useState<string | null>(null)
 
-  function load() {
-    fetch('/api/admin/apikeys').then(r => r.json()).then(d => setKeys(d.keys || [])).catch(() => {}).finally(() => setLoading(false))
-  }
+  useEffect(() => {
+    fetch('/api/admin/apikeys')
+      .then(r => r.json())
+      .then(d => setKeys(d.apiKeys || []))
+      .catch(() => showToast('Failed to load API keys', 'error'))
+      .finally(() => setLoading(false))
+  }, [])
 
-  useEffect(() => { load() }, [])
-
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.name) return
+  async function handleCreate() {
+    if (!form.name.trim()) { showToast('Name required', 'error'); return }
     setSaving(true)
     const res = await fetch('/api/admin/apikeys', {
       method: 'POST',
@@ -52,154 +46,169 @@ export default function AdminApiKeysPage() {
     })
     const d = await res.json()
     if (res.ok) {
-      load()
+      setKeys(prev => [...prev, d.apiKey])
+      setNewKey(d.apiKey?.key || null)
       setCreateOpen(false)
-      setForm({ name: '', description: '', permissions: [] })
-      if (d.rawKey) setNewKey(d.rawKey)
-      else showToast('API key created.', 'success')
+      setForm({ name: '', description: '' })
     } else {
-      showToast(d.error || 'Failed.', 'error')
+      showToast(d.error || 'Failed to create key.', 'error')
     }
     setSaving(false)
-  }
-
-  async function toggleKey(key: ApiKey) {
-    const res = await fetch(`/api/admin/apikeys/${key.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ toggle: true }),
-    })
-    if (res.ok) {
-      setKeys(prev => prev.map(k => k.id === key.id ? { ...k, active: !k.active } : k))
-    }
   }
 
   async function handleDelete() {
     if (!deleteTarget) return
     const res = await fetch(`/api/admin/apikeys/${deleteTarget.id}`, { method: 'DELETE' })
-    if (res.ok) { setKeys(prev => prev.filter(k => k.id !== deleteTarget.id)); showToast('Key deleted.', 'success') }
+    if (res.ok) {
+      setKeys(prev => prev.filter(k => k.id !== deleteTarget.id))
+      showToast('Key deleted.', 'success')
+    } else {
+      showToast('Failed to delete key.', 'error')
+    }
     setDeleteTarget(null)
   }
 
-  function togglePerm(perm: string) {
-    setForm(f => ({
-      ...f,
-      permissions: f.permissions.includes(perm)
-        ? f.permissions.filter(p => p !== perm)
-        : [...f.permissions, perm],
-    }))
+  function maskKey(key: string) {
+    if (key.length <= 8) return '••••••••'
+    return key.slice(0, 4) + '••••••••' + key.slice(-4)
   }
-
-  const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">API Keys</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Manage access tokens for the REST API</p>
-          </div>
-          <button onClick={() => setCreateOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" /></svg>
-            New key
-          </button>
+      <div className="flex-1 p-6 overflow-y-auto pt-16">
+
+        <div className="sm:flex sm:items-center px-8 pt-4">
+          <FadeUp className="sm:flex-auto">
+            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">API Keys Management</h1>
+            <p className="mt-1 tracking-tight text-sm text-neutral-500">Create and manage API keys with specific permissions</p>
+          </FadeUp>
+          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+            <button onClick={() => setCreateOpen(true)} type="button"
+              className="w-full md:w-auto rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition">
+              Create API Key
+            </button>
+          </FadeUp>
         </div>
 
-        {loading ? (
-          <div className="flex items-center justify-center h-32"><svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div>
-        ) : keys.length === 0 ? (
-          <div className="text-center py-12 text-sm text-neutral-400">No API keys yet.</div>
-        ) : (
-          <div className="space-y-3">
-            {keys.map(k => {
-              const perms: string[] = (() => { try { return JSON.parse(k.permissions) } catch { return [] } })()
-              return (
-                <div key={k.id} className="bg-white dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-4">
-                  <div className="flex items-start justify-between gap-3 flex-wrap">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-medium text-neutral-900 dark:text-white">{k.name}</h3>
-                        <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${k.active ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' : 'bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500'}`}>
-                          {k.active ? 'Active' : 'Disabled'}
-                        </span>
-                      </div>
-                      {k.description && <p className="text-xs text-neutral-500 mt-0.5">{k.description}</p>}
-                      <p className="text-[11px] font-mono text-neutral-400 mt-1">{k.key.length > 20 ? k.key.slice(0, 8) + '••••••••' + k.key.slice(-4) : '••••••••'}</p>
-                      {perms.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {perms.slice(0, 4).map(p => (
-                            <span key={p} className="text-[10px] px-1.5 py-0.5 rounded bg-neutral-100 dark:bg-neutral-700/50 text-neutral-500 dark:text-neutral-400 font-mono">{p.split('.').pop()}</span>
-                          ))}
-                          {perms.length > 4 && <span className="text-[10px] text-neutral-400">+{perms.length - 4} more</span>}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <button onClick={() => toggleKey(k)} className={`text-xs px-2.5 py-1.5 rounded-lg border transition font-medium ${k.active ? 'border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5' : 'border-emerald-200 dark:border-emerald-500/30 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-500/10'}`}>
-                        {k.active ? 'Disable' : 'Enable'}
-                      </button>
-                      <button onClick={() => setDeleteTarget(k)} className="text-xs px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-500/20 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition">Delete</button>
-                    </div>
-                  </div>
-                  <p className="text-[10px] text-neutral-400 mt-2">Created {new Date(k.createdAt).toLocaleDateString()} · {k.user?.username || k.user?.email || 'System'}</p>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
-
-      {createOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-md p-6">
-            <h2 className="text-sm font-semibold text-neutral-800 dark:text-white mb-4">Create API key</h2>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div><label className="block text-xs text-neutral-500 mb-1">Name <span className="text-red-400">*</span></label><input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required placeholder="My Integration" /></div>
-              <div><label className="block text-xs text-neutral-500 mb-1">Description</label><input className={inputClass} value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="What this key is for" /></div>
-              <div>
-                <label className="block text-xs text-neutral-500 mb-2">Permissions</label>
-                <div className="space-y-1.5">
-                  {ALL_PERMISSIONS.map(p => (
-                    <label key={p} className="flex items-center gap-2 cursor-pointer">
-                      <input type="checkbox" checked={form.permissions.includes(p)} onChange={() => togglePerm(p)} className="rounded" />
-                      <span className="text-xs font-mono text-neutral-600 dark:text-neutral-400">{p}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="flex gap-2 justify-end pt-2">
-                <button type="button" onClick={() => setCreateOpen(false)} className="px-4 py-2 rounded-lg text-sm text-neutral-500 border border-neutral-200 dark:border-white/10 hover:bg-neutral-50 dark:hover:bg-white/5 transition">Cancel</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 disabled:opacity-60 transition">
-                  {saving ? 'Creating...' : 'Create'}
+        {newKey && (
+          <FadeUp delay={0.06}>
+            <div className="mx-8 mt-5 px-4 py-4 rounded-xl bg-emerald-50 dark:bg-emerald-800/10 border border-emerald-200 dark:border-emerald-500/20">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400 mb-1">API key created — copy it now</p>
+              <p className="text-xs text-emerald-600 dark:text-emerald-400/70 mb-2">This key will not be shown again.</p>
+              <div className="flex items-center gap-2">
+                <code className="text-xs font-mono bg-white dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-500/20 px-3 py-1.5 rounded-lg text-emerald-800 dark:text-emerald-300 break-all flex-1">{newKey}</code>
+                <button onClick={() => { navigator.clipboard.writeText(newKey); showToast('Copied!', 'success') }}
+                  className="shrink-0 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-medium transition">
+                  Copy
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {newKey && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-md p-6">
-            <h2 className="text-sm font-semibold text-neutral-800 dark:text-white mb-2">Save your API key</h2>
-            <p className="text-xs text-neutral-500 mb-4">This key will only be shown once. Copy it now and store it securely.</p>
-            <div className="bg-neutral-900 rounded-lg p-3 mb-4">
-              <p className="text-xs font-mono text-emerald-400 break-all">{newKey}</p>
+              <button onClick={() => setNewKey(null)} className="mt-2 text-xs text-emerald-600 dark:text-emerald-400/70 hover:underline">Dismiss</button>
             </div>
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => { navigator.clipboard.writeText(newKey); showToast('Copied!', 'success') }}
-                className="px-4 py-2 rounded-lg text-sm border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-50 dark:hover:bg-white/5 transition">Copy</button>
-              <button onClick={() => setNewKey(null)} className="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 transition">Done</button>
+          </FadeUp>
+        )}
+
+        <FadeUp delay={0.1}>
+          <div className="px-8 mt-5">
+            <div className="rounded-xl bg-neutral-700/10 dark:bg-neutral-900 p-6">
+              <div className="sm:flex sm:items-center mb-6">
+                <div className="sm:flex-auto">
+                  <h1 className="text-base font-semibold text-neutral-800 dark:text-white">API Keys</h1>
+                  <p className="mt-1 text-sm text-neutral-500">A list of all API keys in your panel.</p>
+                </div>
+              </div>
+              {loading ? (
+                <div className="flex items-center justify-center h-24">
+                  <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+                </div>
+              ) : (
+                <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-800">
+                  <thead>
+                    <tr>
+                      <th className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-neutral-800 dark:text-white sm:pl-0">Name</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-800 dark:text-white">Key</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-800 dark:text-white">Created By</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-800 dark:text-white">Status</th>
+                      <th className="px-3 py-3.5 text-left text-sm font-semibold text-neutral-800 dark:text-white">Created</th>
+                      <th className="relative py-3.5 pl-3 pr-4 sm:pr-0"><span className="sr-only">Actions</span></th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 dark:divide-neutral-800">
+                    {keys.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="py-4 text-sm text-center text-neutral-500">No API keys found</td>
+                      </tr>
+                    ) : keys.map(k => (
+                      <tr key={k.id} className="hover:bg-neutral-50 dark:hover:bg-white/[0.03] transition-colors">
+                        <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-neutral-800 dark:text-white sm:pl-0">
+                          {k.name}
+                          {k.description && <p className="text-xs text-neutral-500 mt-0.5">{k.description}</p>}
+                        </td>
+                        <td className="px-3 py-4 text-sm font-mono text-neutral-500 dark:text-neutral-400">{maskKey(k.key)}</td>
+                        <td className="px-3 py-4 text-sm text-neutral-500 dark:text-neutral-400">{k.createdBy?.username || '—'}</td>
+                        <td className="px-3 py-4 text-sm">
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium ${
+                            k.enabled
+                              ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30'
+                              : 'bg-neutral-100 dark:bg-neutral-800 text-neutral-500 border border-neutral-200 dark:border-neutral-700/40'
+                          }`}>
+                            {k.enabled ? 'Active' : 'Inactive'}
+                          </span>
+                        </td>
+                        <td className="px-3 py-4 text-sm text-neutral-500 dark:text-neutral-400">
+                          {new Date(k.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-4 pl-3 pr-4 text-right sm:pr-0">
+                          <button onClick={() => setDeleteTarget(k)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        </FadeUp>
 
-      <Modal open={!!deleteTarget} title="Delete API key?"
-        body={`Delete "${deleteTarget?.name}"? Any integrations using this key will stop working.`}
-        confirmLabel="Delete" danger onConfirm={handleDelete} onClose={() => setDeleteTarget(null)} />
+        {createOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+            onClick={e => { if (e.target === e.currentTarget) setCreateOpen(false) }}>
+            <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-md p-6">
+              <h2 className="text-sm font-semibold text-neutral-800 dark:text-white mb-4">Create API Key</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">Name</label>
+                  <input className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+                    placeholder="My API Key" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">Description (optional)</label>
+                  <input className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+                    placeholder="What this key is used for" value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+                </div>
+              </div>
+              <div className="flex gap-2 justify-end pt-4">
+                <button onClick={() => setCreateOpen(false)}
+                  className="px-4 py-2 rounded-lg text-sm text-neutral-500 border border-neutral-200 dark:border-white/10 hover:bg-neutral-50 dark:hover:bg-white/5 transition">
+                  Cancel
+                </button>
+                <button onClick={handleCreate} disabled={saving}
+                  className="px-4 py-2 rounded-lg text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
+                  {saving ? 'Creating...' : 'Create Key'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Modal open={!!deleteTarget} title="Delete API key?"
+          body={`Delete "${deleteTarget?.name}"? Any services using this key will stop working.`}
+          confirmLabel="Delete" danger
+          onConfirm={handleDelete}
+          onClose={() => setDeleteTarget(null)} />
+      </div>
     </PanelLayout>
   )
 }

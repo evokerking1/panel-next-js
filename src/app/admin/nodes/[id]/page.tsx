@@ -1,161 +1,215 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
+import { FadeUp } from '@/components/ui/Animate'
+
+const inputClass = "rounded-xl focus:ring focus:ring-neutral-800/10 focus:border-neutral-800/20 text-neutral-800 dark:text-white text-sm mt-2 mb-4 w-full hover:bg-white/5 px-4 py-2 bg-neutral-400/10 dark:bg-neutral-600/20 placeholder:text-neutral-950/50 dark:placeholder:text-white/20 border border-neutral-800/10 dark:border-white/5"
 
 interface NodeData {
-  id: number
-  name: string
-  address: string
-  port: number
-  ram: number
-  cpu: number
-  disk: number
-  key: string
-  allocatedPorts?: string
-  servers: { UUID: string; name: string }[]
+  id: number; name: string; ram: number; disk: number; cpu: number
+  address: string; port: number; key: string
+  allocatedPorts?: number[]
+  instances?: { UUID: string; Ports?: string }[]
 }
 
-export default function NodeEditPage({ params }: { params: Promise<{ id: string }> }) {
+export default function AdminNodeEditPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  useAuth({ require: true, adminOnly: true })
+  const { user } = useAuth({ require: true, adminOnly: true })
   const { showToast } = useToastContext()
   const router = useRouter()
 
   const [node, setNode] = useState<NodeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [portInput, setPortInput] = useState('')
+  const [form, setForm] = useState({ name: '', ram: '', disk: '', cpu: '', address: '', port: '' })
   const [allocatedPorts, setAllocatedPorts] = useState<number[]>([])
-  const [form, setForm] = useState({ name: '', address: '', port: '', ram: '', cpu: '', disk: '' })
+  const [portInput, setPortInput] = useState('')
+  const [usedPorts, setUsedPorts] = useState<Set<number>>(new Set())
 
   useEffect(() => {
     fetch(`/api/admin/nodes/${id}`)
       .then(r => r.json())
       .then(d => {
-        if (d.node) {
-          const n = d.node
-          setNode(n)
-          setForm({ name: n.name, address: n.address, port: String(n.port), ram: String(n.ram), cpu: String(n.cpu), disk: String(n.disk) })
-          try { setAllocatedPorts(JSON.parse(n.allocatedPorts || '[]')) } catch { setAllocatedPorts([]) }
-        }
+        const n: NodeData = d.node || d
+        setNode(n)
+        setForm({
+          name: n.name || '',
+          ram: String(n.ram || ''),
+          disk: String(n.disk || ''),
+          cpu: String(n.cpu || ''),
+          address: n.address || '',
+          port: String(n.port || ''),
+        })
+        setAllocatedPorts(n.allocatedPorts || [])
+        const used = new Set<number>()
+        n.instances?.forEach(srv => {
+          if (!srv.Ports) return
+          try {
+            JSON.parse(srv.Ports).forEach((p: { Port: string }) => {
+              const num = parseInt(p.Port.split(':')[0])
+              if (!isNaN(num)) used.add(num)
+            })
+          } catch {}
+        })
+        setUsedPorts(used)
       })
-      .catch(() => showToast('Failed to load node.', 'error'))
+      .catch(() => showToast('Failed to load node', 'error'))
       .finally(() => setLoading(false))
   }, [id])
 
+  function setField(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
+
   function addPort() {
-    const p = parseInt(portInput.trim())
-    if (isNaN(p) || p < 1024 || p > 65535) { showToast('Port must be between 1024–65535.', 'error'); return }
-    if (allocatedPorts.includes(p)) { showToast('Port already added.', 'error'); return }
-    setAllocatedPorts(prev => [...prev, p].sort((a, b) => a - b))
+    const input = portInput.trim()
+    if (!input) return
+    const next = [...allocatedPorts]
+    if (input.includes('-')) {
+      const [s, e] = input.split('-').map(p => parseInt(p.trim()))
+      if (isNaN(s) || isNaN(e) || s >= e || s < 1024 || e > 65535) {
+        showToast('Invalid port range (1024–65535, start < end)', 'error'); return
+      }
+      for (let p = s; p <= e; p++) { if (!next.includes(p)) next.push(p) }
+    } else {
+      const p = parseInt(input)
+      if (isNaN(p) || p < 1024 || p > 65535) { showToast('Invalid port (1024–65535)', 'error'); return }
+      if (!next.includes(p)) next.push(p)
+    }
+    next.sort((a, b) => a - b)
+    setAllocatedPorts(next)
     setPortInput('')
   }
 
-  function removePort(p: number) { setAllocatedPorts(prev => prev.filter(x => x !== p)) }
+  function removePort(p: number) {
+    if (usedPorts.has(p)) { showToast('Cannot remove port in use by a server', 'error'); return }
+    setAllocatedPorts(prev => prev.filter(x => x !== p))
+  }
 
-  async function save(e: React.FormEvent) {
-    e.preventDefault()
+  async function handleSave() {
     setSaving(true)
     const res = await fetch(`/api/admin/nodes/${id}`, {
-      method: 'PUT',
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, allocatedPorts: JSON.stringify(allocatedPorts) }),
     })
-    const d = await res.json()
-    if (res.ok) showToast('Node updated.', 'success')
-    else showToast(d.error || 'Failed to save.', 'error')
+    if (res.ok) {
+      showToast('Node updated successfully', 'success')
+      setTimeout(() => router.push('/admin/nodes'), 800)
+    } else {
+      showToast('Error updating node', 'error')
+    }
     setSaving(false)
   }
 
-  const inputClass = "w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
-
-  if (loading) return (
-    <PanelLayout><div className="flex items-center justify-center h-64"><svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg></div></PanelLayout>
-  )
-
-  if (!node) return <PanelLayout><div className="px-8 py-12 text-sm text-neutral-400">Node not found.</div></PanelLayout>
+  if (loading) {
+    return (
+      <PanelLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+        </div>
+      </PanelLayout>
+    )
+  }
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8 max-w-2xl">
-        <div className="flex items-center gap-3 mb-6">
-          <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /></svg>
-          </button>
-          <div>
-            <h1 className="text-sm font-semibold text-neutral-800 dark:text-white">Edit: {node.name}</h1>
-            <p className="text-xs text-neutral-500">{node.address}:{node.port}</p>
-          </div>
+      <div className="flex-1 p-6 overflow-y-auto pt-16">
+        <div className="sm:flex sm:items-center px-8 pt-4">
+          <FadeUp className="sm:flex-auto">
+            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Edit Node</h1>
+            <p className="mt-1 tracking-tight text-sm text-neutral-500">Update node configuration and allocated ports.</p>
+          </FadeUp>
         </div>
 
-        <form onSubmit={save} className="space-y-5">
-          <div className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-5">
-            <h2 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-4">Node Details</h2>
-            <div className="space-y-3">
-              <div><label className="block text-xs text-neutral-500 mb-1">Name</label><input className={inputClass} value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} required /></div>
-              <div><label className="block text-xs text-neutral-500 mb-1">Address</label><input className={inputClass} value={form.address} onChange={e => setForm(f => ({ ...f, address: e.target.value }))} required /></div>
-              <div><label className="block text-xs text-neutral-500 mb-1">Port</label><input type="number" className={inputClass} value={form.port} onChange={e => setForm(f => ({ ...f, port: e.target.value }))} required /></div>
-              <div className="grid grid-cols-3 gap-3">
-                <div><label className="block text-xs text-neutral-500 mb-1">RAM (MB)</label><input type="number" className={inputClass} value={form.ram} onChange={e => setForm(f => ({ ...f, ram: e.target.value }))} required /></div>
-                <div><label className="block text-xs text-neutral-500 mb-1">CPU (%)</label><input type="number" className={inputClass} value={form.cpu} onChange={e => setForm(f => ({ ...f, cpu: e.target.value }))} required /></div>
-                <div><label className="block text-xs text-neutral-500 mb-1">Disk (GB)</label><input type="number" className={inputClass} value={form.disk} onChange={e => setForm(f => ({ ...f, disk: e.target.value }))} required /></div>
-              </div>
-            </div>
-          </div>
+        <FadeUp delay={0.06}>
+          <div id="nodeForm" className="mt-6 px-8 w-full">
+            <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl p-5 border border-neutral-200 dark:border-white/5">
+              <div className="grid grid-cols-2 gap-4">
 
-          <div className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-5">
-            <h2 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-2">Port Allocation</h2>
-            <p className="text-xs text-neutral-500 mb-4">These ports will be available to assign to servers on this node.</p>
-            <div className="flex gap-2 mb-3">
-              <input type="number" className={inputClass + ' flex-1'} value={portInput} onChange={e => setPortInput(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addPort() } }}
-                placeholder="e.g. 25565" min={1025} max={65535} />
-              <button type="button" onClick={addPort} className="px-3 py-2 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition shrink-0">Add</button>
-            </div>
-            {allocatedPorts.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {allocatedPorts.map(p => (
-                  <span key={p} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-neutral-100 dark:bg-neutral-700/50 text-sm font-mono text-neutral-700 dark:text-neutral-300">
-                    {p}
-                    <button type="button" onClick={() => removePort(p)} className="text-neutral-400 hover:text-red-500 transition">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-3 h-3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Name:</label>
+                  <input className={inputClass} placeholder="My node" value={form.name} onChange={e => setField('name', e.target.value)} />
+                </div>
 
-          {node.servers.length > 0 && (
-            <div className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-5">
-              <h2 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-3">Servers on this node ({node.servers.length})</h2>
-              <div className="space-y-1.5">
-                {node.servers.map(s => (
-                  <div key={s.UUID} className="flex items-center justify-between text-xs">
-                    <span className="text-neutral-700 dark:text-neutral-300">{s.name}</span>
-                    <span className="font-mono text-neutral-400">{s.UUID.split('-')[0]}</span>
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">RAM (MB):</label>
+                  <input className={inputClass} placeholder="For information purposes only" value={form.ram} onChange={e => setField('ram', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Disk (GB):</label>
+                  <input className={inputClass} placeholder="For information purposes only" value={form.disk} onChange={e => setField('disk', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">CPU:</label>
+                  <input className={inputClass} placeholder="For information purposes only" value={form.cpu} onChange={e => setField('cpu', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">IP Address:</label>
+                  <input className={inputClass} placeholder="localhost" value={form.address} onChange={e => setField('address', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Daemon Port:</label>
+                  <input className={inputClass} placeholder="3002" value={form.port} onChange={e => setField('port', e.target.value)} />
+                </div>
+
+                <div>
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Daemon Key:</label>
+                  <input className={`${inputClass} opacity-60 cursor-not-allowed`} value={node?.key || ''} disabled />
+                </div>
+
+                <div className="col-span-2">
+                  <label className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Allocated Ports:</label>
+                  <div className="flex flex-col space-y-2">
+                    <div className="grid grid-cols-4 gap-2 mb-2 min-h-[2rem]">
+                      {allocatedPorts.length === 0 ? (
+                        <div className="col-span-4 text-sm text-neutral-500 italic">No ports allocated yet. Add ports that will be available for servers.</div>
+                      ) : allocatedPorts.map(p => {
+                        const inUse = usedPorts.has(p)
+                        return (
+                          <div key={p} className={`flex items-center justify-between rounded-lg px-3 py-1.5 text-sm ${inUse ? 'bg-amber-600/10 dark:bg-amber-700/20' : 'bg-neutral-800/10 dark:bg-neutral-700/20'}`}>
+                            <span className={inUse ? 'text-amber-600 dark:text-amber-400 flex items-center gap-1.5' : 'text-neutral-800 dark:text-neutral-300'}>
+                              {p}
+                              {inUse && <span className="text-xs bg-amber-600/20 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">In use</span>}
+                            </span>
+                            <button onClick={() => removePort(p)} disabled={inUse}
+                              className={`ml-2 text-neutral-500 hover:text-red-500 transition-colors ${inUse ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                            </button>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <input type="text" placeholder="25565 or 25565-25570" value={portInput}
+                        onChange={e => setPortInput(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addPort()}
+                        className="rounded-xl focus:ring focus:ring-neutral-800/10 focus:border-neutral-800/20 text-neutral-800 dark:text-white text-sm w-full hover:bg-white/5 px-4 py-2 bg-neutral-400/10 dark:bg-neutral-600/20 placeholder:text-neutral-950/50 dark:placeholder:text-white/20 border border-neutral-800/10 dark:border-white/5" />
+                      <button onClick={addPort} type="button"
+                        className="rounded-xl bg-neutral-900 dark:bg-neutral-800 border border-neutral-700/30 px-3 py-2 text-sm font-medium shadow-lg hover:bg-neutral-800 dark:hover:bg-neutral-700 transition text-neutral-300 whitespace-nowrap">
+                        Add Port
+                      </button>
+                    </div>
                   </div>
-                ))}
+                </div>
+
+                <div className="col-span-2 mt-4">
+                  <button onClick={handleSave} disabled={saving} type="button"
+                    className="w-full md:w-auto rounded-lg bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition disabled:opacity-60">
+                    {saving ? 'Saving...' : 'Update'}
+                  </button>
+                </div>
               </div>
             </div>
-          )}
-
-          <div className="bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 rounded-xl p-5">
-            <h2 className="text-xs font-semibold text-neutral-600 dark:text-neutral-400 uppercase tracking-wide mb-2">Authentication Key</h2>
-            <p className="text-[11px] font-mono text-neutral-500 break-all">{node.key}</p>
           </div>
-
-          <div className="flex gap-3">
-            <button type="button" onClick={() => router.back()} className="px-5 py-2.5 rounded-xl text-sm border border-neutral-200 dark:border-white/10 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-white/5 transition">Cancel</button>
-            <button type="submit" disabled={saving} className="px-5 py-2.5 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
-              {saving ? 'Saving...' : 'Save changes'}
-            </button>
-          </div>
-        </form>
+        </FadeUp>
       </div>
     </PanelLayout>
   )

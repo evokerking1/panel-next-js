@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
 
 async function requireAdmin(req: NextRequest) {
   const res = NextResponse.next();
@@ -27,13 +26,13 @@ export async function GET(req: NextRequest) {
     }),
   ]);
 
-  const totalRamMb = servers.reduce((s: number, srv) => s + (srv.Memory ?? 0), 0);
-  const totalCpuPct = servers.reduce((s: number, srv) => s + (srv.Cpu ?? 0), 0);
-  const totalStorageGb = servers.reduce((s: number, srv) => s + (srv.Storage ?? 0), 0);
+  const totalRamMb = servers.reduce((s: number, srv: { Memory: number }) => s + (srv.Memory ?? 0), 0);
+  const totalCpuPct = servers.reduce((s: number, srv: { Cpu: number }) => s + (srv.Cpu ?? 0), 0);
+  const totalStorageGb = servers.reduce((s: number, srv: { Storage: number }) => s + (srv.Storage ?? 0), 0);
 
   const imageCounts: Record<number, { name: string | null; count: number }> = {};
-  images.forEach(img => { imageCounts[img.id] = { name: img.name, count: 0 }; });
-  servers.forEach(srv => { if (imageCounts[srv.imageId]) imageCounts[srv.imageId].count++; });
+  images.forEach((img: { id: number; name: string | null }) => { imageCounts[img.id] = { name: img.name, count: 0 }; });
+  servers.forEach((srv: { imageId: number }) => { if (imageCounts[srv.imageId]) imageCounts[srv.imageId].count++; });
   const topImages = Object.values(imageCounts)
     .sort((a, b) => b.count - a.count)
     .filter(i => i.count > 0)
@@ -54,10 +53,11 @@ export async function GET(req: NextRequest) {
     }));
 
   const nodeStatuses = await Promise.all(
-    nodes.map(async node => {
-      const serverCount = servers.filter(s => s.nodeId === node.id).length;
+    nodes.map(async (node: { id: number; name: string; address: string; port: number; key: string; ram: number; cpu: number; disk: number }) => {
+      const serverCount = servers.filter((s: { nodeId: number }) => s.nodeId === node.id).length;
       try {
-        const r = await axios.get(daemonUrl(node.address, node.port), {
+        const base = await import('@/lib/daemon').then(m => m.daemonUrl(node.address, node.port));
+        const r = await axios.get(await base, {
           auth: { username: 'Airlink', password: node.key },
           timeout: 3000,
         });
@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     }),
   );
 
-  const adminCount = users.filter(u => u.isAdmin).length;
+  const adminCount = users.filter((u: { isAdmin: boolean }) => u.isAdmin).length;
   const last30Days = new Date();
   last30Days.setDate(last30Days.getDate() - 30);
 
@@ -86,8 +86,8 @@ export async function GET(req: NextRequest) {
     loginsByDay[d.toISOString().slice(0, 10)] = 0;
   }
   loginHistory
-    .filter(l => new Date(l.timestamp) >= last30Days)
-    .forEach(l => {
+    .filter((l: { timestamp: Date }) => new Date(l.timestamp) >= last30Days)
+    .forEach((l: { timestamp: Date }) => {
       const key = new Date(l.timestamp).toISOString().slice(0, 10);
       if (loginsByDay[key] !== undefined) loginsByDay[key]++;
     });
@@ -95,8 +95,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     servers: {
       total: servers.length,
-      suspended: servers.filter(s => s.Suspended).length,
-      installing: servers.filter(s => s.Installing).length,
+      suspended: servers.filter((s: { Suspended: boolean }) => s.Suspended).length,
+      installing: servers.filter((s: { Installing: boolean }) => s.Installing).length,
       totalRamMb,
       totalCpuPct,
       totalStorageGb,

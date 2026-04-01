@@ -5,129 +5,129 @@ import { useRouter } from 'next/navigation'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
-import Link from 'next/link'
+import { FadeUp } from '@/components/ui/Animate'
+import LoadingPopup from '@/components/ui/LoadingPopup'
 
-export default function CreateNodePage() {
-  useAuth({ require: true, adminOnly: true })
+const inputClass = "rounded-xl focus:ring focus:ring-neutral-800/10 focus:border-neutral-800/20 text-neutral-800 dark:text-white text-sm mt-2 mb-4 w-full hover:bg-white/5 px-4 py-2 bg-neutral-400/10 dark:bg-neutral-600/20 placeholder:text-neutral-950/50 dark:placeholder:text-white/20 border border-neutral-800/10 dark:border-white/5"
+
+export default function AdminNodeCreatePage() {
+  const { user } = useAuth({ require: true, adminOnly: true })
   const { showToast } = useToastContext()
   const router = useRouter()
-  const [creating, setCreating] = useState(false)
+
   const [form, setForm] = useState({
-    name: '',
-    address: '127.0.0.1',
-    port: '3001',
-    sftpPort: '3003',
-    ram: '',
-    cpu: '',
-    disk: '',
+    name: '', ram: '', disk: '', cpu: '', address: '', port: '3002',
+  })
+  const [popup, setPopup] = useState<{ open: boolean; message: string; state: 'loading' | 'done' | 'error' }>({
+    open: false, message: '', state: 'loading',
   })
 
-  function set(key: string, value: string) {
-    setForm(f => ({ ...f, [key]: value }))
+  function setField(k: string, v: string) {
+    setForm(f => ({ ...f, [k]: v }))
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setCreating(true)
-    const res = await fetch('/api/admin/nodes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.name,
-        address: form.address,
-        port: form.port,
-        sftpPort: form.sftpPort,
-        ram: form.ram,
-        cpu: form.cpu,
-        disk: form.disk,
-      }),
-    })
-    const d = await res.json()
-    if (res.ok) {
-      showToast('Node created.', 'success')
-      router.push('/admin/nodes')
-    } else {
-      showToast(d.error || 'Failed to create node.', 'error')
-      setCreating(false)
+  async function handleCreate() {
+    if (!form.name || !form.address || !form.port) {
+      showToast('Please fill in all required fields', 'error')
+      return
+    }
+
+    setPopup({ open: true, message: 'Sending node configuration...', state: 'loading' })
+
+    try {
+      const res = await fetch('/api/admin/nodes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(form),
+      })
+
+      if (res.ok) {
+        setPopup({ open: true, message: 'Node created successfully!', state: 'done' })
+        showToast('Node created successfully!', 'success')
+        setTimeout(() => {
+          setPopup(p => ({ ...p, open: false }))
+          router.push('/admin/nodes')
+        }, 1000)
+      } else {
+        const d = await res.json()
+        setPopup({ open: true, message: d.error || 'Failed to create node', state: 'error' })
+        showToast(d.error || 'Failed to create node', 'error')
+      }
+    } catch (err) {
+      setPopup({ open: true, message: 'Network error', state: 'error' })
+      showToast('Error creating node', 'error')
     }
   }
 
-  const inputClass = 'w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition'
-
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8 max-w-2xl">
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/admin/nodes" className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-          </Link>
-          <div>
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Create node</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Add a new daemon node to the panel</p>
-          </div>
+      <div className="flex-1 p-6 overflow-y-auto pt-16">
+        <div className="sm:flex sm:items-center px-8 pt-4">
+          <FadeUp className="sm:flex-auto">
+            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Create Node</h1>
+            <p className="mt-1 tracking-tight text-sm text-neutral-500">Add a new daemon node to the panel</p>
+          </FadeUp>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="bg-neutral-50 dark:bg-white/[0.03] rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
-            <div className="px-5 py-4 border-b border-neutral-200 dark:border-white/5">
-              <h2 className="text-sm font-medium text-neutral-800 dark:text-white">Node details</h2>
-            </div>
-            <div className="px-5 py-5 space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">Name</label>
-                <input type="text" required placeholder="Node 1" value={form.name} onChange={e => set('name', e.target.value)} className={inputClass} />
-              </div>
+        <FadeUp delay={0.06}>
+          <div id="nodeForm" className="mt-6 px-8 w-full">
+            <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl p-5 border border-neutral-200 dark:border-white/5">
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1.5">Address</label>
-                  <input type="text" required placeholder="127.0.0.1" value={form.address} onChange={e => set('address', e.target.value)} className={inputClass} />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-neutral-500 mb-1.5">Daemon port</label>
-                  <input type="number" required placeholder="3001" value={form.port} onChange={e => set('port', e.target.value)} className={inputClass} />
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">SFTP port</label>
-                <input type="number" required placeholder="3003" value={form.sftpPort} onChange={e => set('sftpPort', e.target.value)} className={inputClass} />
-              </div>
-            </div>
-          </div>
 
-          <div className="bg-neutral-50 dark:bg-white/[0.03] rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
-            <div className="px-5 py-4 border-b border-neutral-200 dark:border-white/5">
-              <h2 className="text-sm font-medium text-neutral-800 dark:text-white">Resource limits</h2>
-              <p className="text-xs text-neutral-500 mt-0.5">Total resources available on this node.</p>
-            </div>
-            <div className="px-5 py-5 grid grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">RAM (MB)</label>
-                <input type="number" required placeholder="8192" value={form.ram} onChange={e => set('ram', e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">CPU (%)</label>
-                <input type="number" required placeholder="400" value={form.cpu} onChange={e => set('cpu', e.target.value)} className={inputClass} />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-neutral-500 mb-1.5">Disk (GB)</label>
-                <input type="number" required placeholder="100" value={form.disk} onChange={e => set('disk', e.target.value)} className={inputClass} />
-              </div>
-            </div>
-          </div>
+                <div>
+                  <label htmlFor="nodeName" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Name:</label>
+                  <input id="nodeName" className={inputClass} placeholder="My node"
+                    value={form.name} onChange={e => setField('name', e.target.value)} />
+                </div>
 
-          <div className="flex gap-3">
-            <button type="submit" disabled={creating}
-              className="px-4 py-2 rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 transition">
-              {creating ? 'Creating…' : 'Create node'}
-            </button>
-            <Link href="/admin/nodes"
-              className="px-4 py-2 rounded-lg border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
-              Cancel
-            </Link>
+                <div>
+                  <label htmlFor="nodeRam" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">RAM (MB):</label>
+                  <input id="nodeRam" className={inputClass} placeholder="For information purposes only"
+                    value={form.ram} onChange={e => setField('ram', e.target.value)} />
+                </div>
+
+                <div>
+                  <label htmlFor="nodeDisk" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Disk (GB):</label>
+                  <input id="nodeDisk" className={inputClass} placeholder="For information purposes only"
+                    value={form.disk} onChange={e => setField('disk', e.target.value)} />
+                </div>
+
+                <div>
+                  <label htmlFor="nodeProcessor" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">CPU:</label>
+                  <input id="nodeProcessor" className={inputClass} placeholder="For information purposes only"
+                    value={form.cpu} onChange={e => setField('cpu', e.target.value)} />
+                </div>
+
+                <div>
+                  <label htmlFor="nodeAddress" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">IP Address:</label>
+                  <input id="nodeAddress" className={inputClass} placeholder="localhost"
+                    value={form.address} onChange={e => setField('address', e.target.value)} />
+                </div>
+
+                <div>
+                  <label htmlFor="nodePort" className="text-neutral-700 dark:text-neutral-400 text-sm tracking-tight mb-2">Daemon Port:</label>
+                  <input id="nodePort" className={inputClass} placeholder="3002"
+                    value={form.port} onChange={e => setField('port', e.target.value)} />
+                </div>
+
+                <div className="col-span-2">
+                  <button onClick={handleCreate} type="button"
+                    className="w-full md:w-auto rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition">
+                    Create
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </form>
+        </FadeUp>
+
+        <LoadingPopup
+          open={popup.open}
+          title="Creating Node"
+          message={popup.message}
+          state={popup.state}
+          onHide={() => setPopup(p => ({ ...p, open: false }))}
+        />
       </div>
     </PanelLayout>
   )

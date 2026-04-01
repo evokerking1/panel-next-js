@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
     username: user.username ?? '',
     isAdmin: user.isAdmin,
     description: user.description ?? '',
+    avatar: user.avatar ?? null,
   };
   await session.save();
   return response;

@@ -1,10 +1,5 @@
-node_modules/
-.next/
-*.db
-*.db-journal
-.env
-public/uploads/
-storage/addons/
-storage/eggs/
-storage/lang/*/lang.json
-dist/
+node_modules
+.next
+storage
+public/uploads
+prisma/dev.db

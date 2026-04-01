@@ -1,6 +1,3 @@
-
-# DO NOT USE THIS THIS IS STILL IN VERY VERY VERY EARLY DEVELOPMENT ITS NOT EVEN READY FOR TESTING ALL THE UI AND EVERYTHING IS BROKEN AND NOT DONE SO PLEASE DON'T USE
-
 # Airlink Panel — Next.js
 
 A one-to-one port of the Airlink Panel from Express to Next.js 15 / React 19.
@@ -16,7 +13,7 @@ cp .env.example .env
 # Edit .env — set SESSION_SECRET to a random 32+ char string
 
 # 3. Push the database schema
-npm run db:setup
+npm run db:push
 
 # 4. Start in dev mode
 npm run dev
