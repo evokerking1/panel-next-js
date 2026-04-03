@@ -42,21 +42,25 @@ export async function POST(req: NextRequest) {
   const user = await requireAdmin(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const body = await req.json().catch(() => ({})) as { imageId?: string };
-  if (!body.imageId) return NextResponse.json({ error: 'imageId required.' }, { status: 400 });
+  const body = await req.json().catch(() => ({})) as { egg?: Record<string, unknown>; imageId?: string };
 
   let egg: Record<string, unknown> | null = null;
 
-  // Look up from the catalogue cache
-  try {
-    if (fs.existsSync(CACHE_FILE)) {
-      const cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
-      const entry = (cache.images || []).find((i: { group?: string; name?: string }) =>
-        i.group === body.imageId || i.name === body.imageId
-      );
-      if (entry?.egg) egg = entry.egg;
-    }
-  } catch {}
+  // Prefer a directly-provided egg object (same as Express sends from the modal)
+  if (body.egg && typeof body.egg === 'object' && body.egg.name) {
+    egg = body.egg;
+  } else if (body.imageId) {
+    // Fall back to looking up by group/name from the cache
+    try {
+      if (fs.existsSync(CACHE_FILE)) {
+        const cache = JSON.parse(fs.readFileSync(CACHE_FILE, 'utf-8'));
+        const entry = (cache.images || []).find((i: { group?: string; name?: string }) =>
+          i.group === body.imageId || i.name === body.imageId
+        );
+        if (entry?.egg) egg = entry.egg;
+      }
+    } catch {}
+  }
 
   if (!egg) {
     return NextResponse.json({ error: 'Image not found in catalogue.' }, { status: 404 });

@@ -31,6 +31,9 @@ export default function AdminImagesPage() {
   const [deleteTarget, setDeleteTarget] = useState<Image | null>(null)
   const [createOpen, setCreateOpen] = useState(false)
   const [newName, setNewName] = useState('')
+  const [newAuthor, setNewAuthor] = useState('')
+  const [newStartup, setNewStartup] = useState('')
+  const [newDescription, setNewDescription] = useState('')
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -61,17 +64,18 @@ export default function AdminImagesPage() {
 
   async function handleCreate() {
     if (!newName.trim()) { showToast('Name required', 'error'); return }
+    if (!newStartup.trim()) { showToast('Startup command required', 'error'); return }
     setSaving(true)
     const res = await fetch('/api/admin/images', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: newName }),
+      body: JSON.stringify({ name: newName, author: newAuthor, startup: newStartup, description: newDescription }),
     })
     const d = await res.json()
     if (res.ok) {
       setImages(prev => [...prev, d.image])
       setCreateOpen(false)
-      setNewName('')
+      setNewName(''); setNewAuthor(''); setNewStartup(''); setNewDescription('')
       showToast('Image created.', 'success')
       if (d.image?.id) router.push(`/admin/images/${d.image.id}`)
     } else {
@@ -250,18 +254,50 @@ export default function AdminImagesPage() {
         {createOpen && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
             <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-xl w-full max-w-[460px] p-6">
-              <h2 className="text-sm font-semibold text-neutral-800 dark:text-white mb-4">New Image</h2>
-              <label className="block text-xs text-neutral-500 mb-1">Name</label>
-              <input
-                className="w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition mb-4"
-                placeholder="e.g. Minecraft Java"
-                value={newName}
-                onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleCreate()}
-                autoFocus
-              />
+              <h2 className="text-sm font-semibold text-neutral-800 dark:text-white mb-1">New Image</h2>
+              <p className="text-xs text-neutral-500 mb-4">Configure Docker images and variables after creation.</p>
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className="col-span-2">
+                  <label className="block text-xs text-neutral-500 mb-1">Name <span className="text-red-500">*</span></label>
+                  <input
+                    className="w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+                    placeholder="e.g. Minecraft Java"
+                    value={newName}
+                    onChange={e => setNewName(e.target.value)}
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">Author</label>
+                  <input
+                    className="w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition"
+                    placeholder="e.g. github.com/you"
+                    value={newAuthor}
+                    onChange={e => setNewAuthor(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-neutral-500 mb-1">Startup Command <span className="text-red-500">*</span></label>
+                  <input
+                    className="w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition font-mono"
+                    placeholder="java -Xms128M -jar server.jar"
+                    value={newStartup}
+                    onChange={e => setNewStartup(e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-xs text-neutral-500 mb-1">Description</label>
+                  <textarea
+                    className="w-full rounded-xl border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 px-3 py-2 outline-none focus:border-neutral-400 dark:focus:border-white/25 transition resize-none"
+                    placeholder="What does this image run?"
+                    rows={2}
+                    value={newDescription}
+                    onChange={e => setNewDescription(e.target.value)}
+                  />
+                </div>
+              </div>
               <div className="flex gap-2 justify-end">
-                <button onClick={() => { setCreateOpen(false); setNewName('') }}
+                <button onClick={() => { setCreateOpen(false); setNewName(''); setNewAuthor(''); setNewStartup(''); setNewDescription('') }}
                   className="px-4 py-2 rounded-lg text-sm text-neutral-500 border border-neutral-200 dark:border-white/10 hover:bg-neutral-50 dark:hover:bg-white/5 transition">
                   Cancel
                 </button>
