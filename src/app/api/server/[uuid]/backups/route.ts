@@ -48,24 +48,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     const backupName = `backup-${Date.now()}`;
     try {
       const { data } = await axios.post(
-        `${base}/backup/create`,
+        `${base}/container/backup`,
         { id: uuid, name: backupName },
         { auth, timeout: 30000 }
       );
 
       await prisma.backup.create({
         data: {
+          UUID: data.backup.uuid,
           name: backupName,
           serverId: uuid,
-          filePath: data?.path || backupName,
-          size: data?.size ? BigInt(data.size) : null,
+          filePath: data.backup.filePath,
+          size: data.backup.size ? BigInt(data.backup.size) : null,
         },
       });
 
       return NextResponse.json({ success: true });
     } catch (err) {
-      const msg = axios.isAxiosError(err) ? err.response?.data?.message || err.message : String(err);
-      return NextResponse.json({ error: 'Backup failed: ' + msg }, { status: 500 });
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Backup failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
     }
   }
 
@@ -73,12 +74,17 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     const backup = await prisma.backup.findUnique({ where: { UUID: backupId } });
     if (!backup) return NextResponse.json({ error: 'Backup not found.' }, { status: 404 });
 
-    await axios.post(
-      `${base}/backup/restore`,
-      { id: uuid, path: backup.filePath },
-      { auth, timeout: 30000 }
-    );
-    return NextResponse.json({ success: true });
+    try {
+      await axios.post(
+        `${base}/container/restore`,
+        { id: uuid, backupPath: backup.filePath },
+        { auth, timeout: 300000 }
+      );
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Restore failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   if (action === 'delete' && backupId) {
@@ -86,7 +92,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     if (!backup) return NextResponse.json({ error: 'Backup not found.' }, { status: 404 });
 
     try {
-      await axios.delete(`${base}/backup/delete`, { data: { id: uuid, path: backup.filePath }, auth, timeout: 10000 });
+      await axios.delete(`${base}/container/backup`, {
+        data: { backupPath: backup.filePath },
+        auth,
+        timeout: 10000,
+      });
     } catch {}
 
     await prisma.backup.delete({ where: { UUID: backupId } });

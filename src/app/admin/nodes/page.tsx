@@ -1,5 +1,7 @@
 'use client'
 
+import { AlertTriangle, Pencil, Trash2 , Loader2} from 'lucide-react'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -114,9 +116,7 @@ export default function AdminNodesPage() {
               <div className="rounded-xl bg-red-600/20 dark:bg-red-800/10 px-4 py-6 shadow-lg border border-neutral-800/20">
                 <div className="flex">
                   <div className="flex-shrink-0 ml-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mt-2 text-red-500 dark:text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                    </svg>
+                    <AlertTriangle className="h-5 w-5 mt-2 text-red-500 dark:text-red-400" />
                   </div>
                   <div className="ml-5">
                     <h3 className="text-sm font-medium text-red-500 dark:text-red-400">Connection Error</h3>
@@ -135,7 +135,7 @@ export default function AdminNodesPage() {
           <div className="overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40" id="nodeTable">
             {loading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+                <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
               </div>
             ) : nodes.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -187,11 +187,11 @@ export default function AdminNodesPage() {
                           </button>
                           <Link href={`/admin/nodes/${node.id}`}
                             className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+                            <Pencil className="w-4 h-4" />
                           </Link>
                           <button onClick={() => setDeleteTarget(node)}
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

@@ -160,6 +160,17 @@ html, body {
   animation: card-enter 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.xterm {
+  padding: 8px;
+  height: 100%;
+}
+.xterm-viewport {
+  background: #141414!important;
+}
+.xterm-screen {
+  background: #141414;
+}
+
 .page-enter > * {
   animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

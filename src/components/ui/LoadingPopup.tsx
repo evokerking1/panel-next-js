@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
+import { Check, X, Circle , Loader2} from 'lucide-react'
 
 interface Step {
   text: string
@@ -38,18 +38,10 @@ export default function LoadingPopup({ open, title, message, steps = [], state =
             <div className="flex items-start gap-3 mb-3">
               <div className="mt-0.5 shrink-0 text-neutral-400">
                 {state === 'loading' && (
-                  <div className="w-4 h-4 border-2 border-transparent border-t-current rounded-full animate-spin" />
+                  <Loader2 className="animate-spin h-4 w-4" />
                 )}
-                {state === 'done' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <polyline points="20 6 9 17 4 12" />
-                  </svg>
-                )}
-                {state === 'error' && (
-                  <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                )}
+                {state === 'done' && <Check className="w-4 h-4 text-emerald-500" strokeWidth={2.5} />}
+                {state === 'error' && <X className="w-4 h-4 text-red-500" strokeWidth={2.5} />}
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
@@ -70,15 +62,9 @@ export default function LoadingPopup({ open, title, message, steps = [], state =
               <div className="space-y-1.5 mb-3">
                 {steps.map((step, i) => (
                   <div key={i} className="flex items-center gap-1.5">
-                    {step.type === 'done' && (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-emerald-500 shrink-0"><polyline points="20 6 9 17 4 12" /></svg>
-                    )}
-                    {step.type === 'error' && (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-red-400 shrink-0"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
-                    )}
-                    {step.type === 'pending' && (
-                      <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-neutral-300 dark:text-neutral-600 shrink-0"><circle cx="12" cy="12" r="1" /></svg>
-                    )}
+                    {step.type === 'done' && <Check width={11} height={11} className="text-emerald-500 shrink-0" strokeWidth={2.5} />}
+                    {step.type === 'error' && <X width={11} height={11} className="text-red-400 shrink-0" strokeWidth={2.5} />}
+                    {step.type === 'pending' && <Circle width={11} height={11} className="text-neutral-300 dark:text-neutral-600 shrink-0" strokeWidth={2} />}
                     <span className={`text-xs leading-tight ${
                       step.type === 'done' ? 'text-neutral-600 dark:text-neutral-300' :
                       step.type === 'error' ? 'text-red-400' :

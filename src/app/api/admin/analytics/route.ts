@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
+import { daemonUrl } from '@/lib/daemon';
 
 async function requireAdmin(req: NextRequest) {
   const res = NextResponse.next();
@@ -56,8 +57,8 @@ export async function GET(req: NextRequest) {
     nodes.map(async (node: { id: number; name: string; address: string; port: number; key: string; ram: number; cpu: number; disk: number }) => {
       const serverCount = servers.filter((s: { nodeId: number }) => s.nodeId === node.id).length;
       try {
-        const base = await import('@/lib/daemon').then(m => m.daemonUrl(node.address, node.port));
-        const r = await axios.get(await base, {
+        const base = daemonUrl(node.address, node.port);
+        const r = await axios.get(base, {
           auth: { username: 'Airlink', password: node.key },
           timeout: 3000,
         });

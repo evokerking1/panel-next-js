@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
@@ -21,8 +20,9 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const nodes = await prisma.node.findMany();
+  type NodeRow = (typeof nodes)[number];
   const withStatus = await Promise.all(
-    nodes.map(async (node) => {
+    nodes.map(async (node: NodeRow) => {
       const instances = await prisma.server.findMany({ where: { nodeId: node.id } });
       const online = await checkNodeOnline(node.address, node.port, node.key);
       return { ...node, instances, online };

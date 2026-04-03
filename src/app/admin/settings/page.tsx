@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import { Loader2 } from 'lucide-react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
@@ -173,7 +174,7 @@ export default function AdminSettingsPage() {
 
           {loading ? (
             <div className="flex items-center justify-center h-32">
-              <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+              <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
             </div>
           ) : (
             <>

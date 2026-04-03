@@ -1,5 +1,7 @@
 'use client'
 
+import { Info , Loader2} from 'lucide-react'
+
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import PanelLayout from '@/components/layout/PanelLayout'
@@ -142,7 +144,7 @@ export default function AccountPage() {
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+          <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
         </div>
       </PanelLayout>
     )
@@ -162,9 +164,7 @@ export default function AccountPage() {
               href="/credits"
               className="flex items-center gap-1.5 rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-white/5 px-3 py-2 text-xs font-medium text-neutral-600 dark:text-neutral-400 shadow-sm dark:shadow-none transition shrink-0 hover:bg-neutral-50 dark:hover:bg-white/10"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3.5 h-3.5">
-                <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12Zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 0 1 .67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 1 1-.671-1.34l.041-.022ZM12 9a.75.75 0 1 0 0-1.5A.75.75 0 0 0 12 9Z" clipRule="evenodd" />
-              </svg>
+              <Info className="w-3.5 h-3.5" />
               Credits
             </Link>
           </div>

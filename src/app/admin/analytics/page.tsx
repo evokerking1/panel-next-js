@@ -1,5 +1,7 @@
 'use client'
 
+import { RefreshCw , Loader2} from 'lucide-react'
+
 import { useState, useEffect, useRef } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
@@ -203,9 +205,7 @@ export default function AdminAnalyticsPage() {
               onClick={() => tab === 'playerstats' ? loadPlayerStats() : load(true)}
               disabled={refreshing || psLoading}
               className="flex items-center gap-1.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 hover:bg-neutral-100 dark:hover:bg-white/5 text-neutral-700 dark:text-neutral-300 px-3 py-2 text-sm font-medium transition">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-4 h-4 ${refreshing || psLoading ? 'animate-spin' : ''}`}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-              </svg>
+              <RefreshCw className="w-4 h-4" />
               Refresh
             </button>
           </div>
@@ -225,7 +225,7 @@ export default function AdminAnalyticsPage() {
 
           {loading ? (
             <div className="flex items-center gap-3 py-12 text-neutral-400">
-              <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+              <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
               <span className="text-sm">Loading analytics…</span>
             </div>
           ) : (
@@ -355,7 +355,7 @@ export default function AdminAnalyticsPage() {
                 <div>
                   {psLoading && (
                     <div className="flex items-center gap-3 py-12 text-neutral-400">
-                      <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+                      <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
                       <span className="text-sm">Loading player stats…</span>
                     </div>
                   )}

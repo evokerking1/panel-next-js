@@ -1,5 +1,7 @@
 'use client'
 
+import { ArrowLeft , Loader2} from 'lucide-react'
+
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -86,7 +88,7 @@ export default function AdminUserEditPage({ params }: { params: Promise<{ id: st
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+          <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
         </div>
       </PanelLayout>
     )
@@ -103,9 +105,7 @@ export default function AdminUserEditPage({ params }: { params: Promise<{ id: st
           <FadeUp delay={0.05} className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
             <Link href="/admin/users"
               className="inline-flex items-center rounded-xl bg-neutral-950 dark:bg-white hover:bg-neutral-300 text-neutral-200 dark:text-neutral-800 px-3 py-2 text-sm font-medium shadow-md transition">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
+              <ArrowLeft className="h-5 w-5 mr-2" />
               Back to Users
             </Link>
           </FadeUp>

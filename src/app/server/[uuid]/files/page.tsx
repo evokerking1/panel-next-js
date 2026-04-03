@@ -1,27 +1,22 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, useRef, use } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
+import InstallBanner from '@/components/server/InstallBanner'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
+import { Folder, File, Loader2, Download, Plus, Upload, FolderPlus, Pencil } from 'lucide-react'
 
 interface FileEntry { name: string; type: 'file' | 'directory'; size?: number; modified?: string }
 
+interface ServerInfo { UUID: string; name: string; Installing: boolean }
+
 function FileIcon({ type }: { type: string }) {
-  if (type === 'directory') return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-amber-500 shrink-0">
-      <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 12h-15a4.483 4.483 0 0 0-3 1.146Z" />
-    </svg>
-  )
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-neutral-400 shrink-0">
-      <path fillRule="evenodd" d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0 0 16.5 9h-1.875a1.875 1.875 0 0 1-1.875-1.875V5.25A3.75 3.75 0 0 0 9 1.5H5.625Z" clipRule="evenodd" />
-      <path d="M12.971 1.816A5.23 5.23 0 0 1 14.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 0 1 3.434 1.279 9.768 9.768 0 0 0-6.963-6.963Z" />
-    </svg>
-  )
+  if (type === 'directory') return <Folder className="h-4 w-4 text-amber-500 shrink-0" />
+  return <File className="h-4 w-4 text-neutral-400 shrink-0" />
 }
 
 function formatSize(bytes?: number) {
@@ -31,18 +26,56 @@ function formatSize(bytes?: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+const headerBtnClass = 'border border-neutral-800/20 rounded-xl bg-white hover:bg-neutral-200 dark:hover:bg-neutral-300 text-neutral-800 px-3 py-2 text-sm font-medium shadow-lg transition flex items-center gap-1.5'
+
+function NameModal({ open, title, placeholder, value, onChange, onConfirm, onClose }: {
+  open: boolean; title: string; placeholder: string; value: string
+  onChange: (v: string) => void; onConfirm: () => void; onClose: () => void
+}) {
+  if (!open) return null
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+      <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-[14px] w-full max-w-[380px] p-[22px]">
+        <p className="text-sm font-semibold text-neutral-800 dark:text-white mb-3">{title}</p>
+        <input autoFocus type="text" value={value}
+          onChange={e => onChange(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') onConfirm(); if (e.key === 'Escape') onClose() }}
+          placeholder={placeholder}
+          className="w-full border border-neutral-200 dark:border-white/[0.10] rounded-[9px] bg-neutral-50 dark:bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 mb-4 transition" />
+        <div className="flex gap-2 justify-end">
+          <button onClick={onClose} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-neutral-500 border border-neutral-200 dark:border-white/[0.10] hover:bg-neutral-50 dark:hover:bg-white/5 transition">Cancel</button>
+          <button onClick={onConfirm} className="px-4 py-2 rounded-[9px] text-[13px] font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">Confirm</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function ServerFilesPage({ params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = use(params)
   useAuth({ require: true })
   const { showToast } = useToastContext()
+  const [server, setServer] = useState<ServerInfo | null>(null)
   const [path, setPath] = useState('/')
   const [files, setFiles] = useState<FileEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [editFile, setEditFile] = useState<{ path: string; content: string } | null>(null)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
-  const [newFolderName, setNewFolderName] = useState('')
   const [newFolderOpen, setNewFolderOpen] = useState(false)
+  const [newFolderName, setNewFolderName] = useState('')
+  const [newFileOpen, setNewFileOpen] = useState(false)
+  const [newFileName, setNewFileName] = useState('')
+  const [renameTarget, setRenameTarget] = useState<FileEntry | null>(null)
+  const [renameName, setRenameName] = useState('')
+  const uploadRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    fetch(`/api/server/${uuid}`)
+      .then(r => r.json())
+      .then(d => { if (d.server) setServer(d.server) })
+      .catch(() => {})
+  }, [uuid])
 
   function loadFiles(p: string) {
     setLoading(true)
@@ -110,8 +143,51 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'mkdir', path: folderPath }),
     })
-    if (res.ok) { showToast('Folder created.', 'success'); loadFiles(path); setNewFolderOpen(false); setNewFolderName('') }
+    if (res.ok) { showToast('Folder created.', 'success'); loadFiles(path) }
     else showToast('Failed to create folder.', 'error')
+    setNewFolderOpen(false)
+    setNewFolderName('')
+  }
+
+  async function createFile() {
+    const name = newFileName.trim()
+    if (!name) return
+    const filePath = (path.endsWith('/') ? path : path + '/') + name
+    const res = await fetch(`/api/server/${uuid}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'write', path: filePath, content: '' }),
+    })
+    if (res.ok) { showToast('File created.', 'success'); loadFiles(path) }
+    else showToast('Failed to create file.', 'error')
+    setNewFileOpen(false)
+    setNewFileName('')
+  }
+
+  async function renameFile() {
+    if (!renameTarget) return
+    const name = renameName.trim()
+    if (!name) return
+    const fullPath = (path.endsWith('/') ? path : path + '/') + renameTarget.name
+    const res = await fetch(`/api/server/${uuid}/files`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'rename', path: fullPath, newName: name }),
+    })
+    if (res.ok) { showToast('Renamed.', 'success'); loadFiles(path) }
+    else showToast('Failed to rename.', 'error')
+    setRenameTarget(null)
+    setRenameName('')
+  }
+
+  function handleUpload() {
+    showToast('Upload not yet available.', 'error')
+    if (uploadRef.current) uploadRef.current.value = ''
+  }
+
+  function downloadFile(name: string) {
+    const filePath = (path.endsWith('/') ? path : path + '/') + name
+    window.location.href = `/api/server/${uuid}/files?action=download&filePath=${encodeURIComponent(filePath)}`
   }
 
   const breadcrumbs = ['/', ...path.split('/').filter(Boolean)]
@@ -124,6 +200,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       </div>
       </FadeUp>
       <ServerTabs uuid={uuid} />
+      {server && <InstallBanner uuid={uuid} installing={server.Installing} />}
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
         {editFile ? (
@@ -155,18 +232,30 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
                   </span>
                 ))}
               </div>
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {path !== '/' && (
                   <button onClick={goUp} className="px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5 transition">Up</button>
                 )}
-                <button onClick={() => setNewFolderOpen(true)} className="px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5 transition">New folder</button>
                 <button onClick={() => loadFiles(path)} className="px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5 transition">Refresh</button>
+                <button onClick={() => setNewFileOpen(true)} className={headerBtnClass}>
+                  <Plus className="h-4 w-4" />
+                  New File
+                </button>
+                <button onClick={() => uploadRef.current?.click()} className={headerBtnClass}>
+                  <Upload className="h-4 w-4" />
+                  Upload File
+                </button>
+                <input ref={uploadRef} type="file" multiple className="hidden" onChange={handleUpload} />
+                <button onClick={() => setNewFolderOpen(true)} className={headerBtnClass}>
+                  <FolderPlus className="h-4 w-4" />
+                  New Folder
+                </button>
               </div>
             </div>
             <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
               {loading ? (
                 <div className="flex items-center justify-center py-12">
-                  <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
                 </div>
               ) : files.length === 0 ? (
                 <div className="py-12 text-center text-sm text-neutral-400">This directory is empty.</div>
@@ -179,7 +268,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
                   </thead>
                   <tbody className="divide-y divide-neutral-100 dark:divide-white/5 bg-white dark:bg-transparent">
                     {files.map(f => (
-                      <tr key={f.name} className="hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors">
+                      <tr key={f.name} className="group hover:bg-neutral-50 dark:hover:bg-white/[0.02] transition-colors">
                         <td className="py-2.5 pl-4 pr-3">
                           <button onClick={() => navigate(f.name, f.type)} className="flex items-center gap-2 text-sm text-neutral-800 dark:text-neutral-200 hover:text-blue-600 dark:hover:text-blue-400 transition text-left">
                             <FileIcon type={f.type} />
@@ -189,7 +278,17 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
                         <td className="px-3 py-2.5 text-xs text-neutral-500">{formatSize(f.size)}</td>
                         <td className="px-3 py-2.5 text-xs text-neutral-500">{f.modified ? new Date(f.modified).toLocaleDateString() : ''}</td>
                         <td className="px-3 py-2.5">
-                          <button onClick={() => setDeleteTarget(f)} className="text-xs text-red-500 hover:underline opacity-0 group-hover:opacity-100 hover:opacity-100 transition">Delete</button>
+                          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition">
+                            {f.type === 'file' && (
+                              <button onClick={() => downloadFile(f.name)} className="text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition" title="Download">
+                                <Download className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button onClick={() => { setRenameTarget(f); setRenameName(f.name) }} className="text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200 transition" title="Rename">
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => setDeleteTarget(f)} className="text-xs text-red-500 hover:underline transition">Delete</button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -200,27 +299,23 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
           </>
         )}
       </div>
-
-      {newFolderOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-sm p-5">
-            <p className="text-sm font-semibold text-neutral-800 dark:text-white mb-3">New folder</p>
-            <input autoFocus value={newFolderName} onChange={e => setNewFolderName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') setNewFolderOpen(false) }}
-              className="w-full px-3 py-2 rounded-lg border border-neutral-200 dark:border-white/10 bg-neutral-50 dark:bg-white/[0.04] text-sm text-neutral-900 dark:text-neutral-100 outline-none focus:border-neutral-400 dark:focus:border-white/25 mb-4 transition"
-              placeholder="folder-name" />
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setNewFolderOpen(false)} className="px-3 py-1.5 text-sm rounded-lg border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-50 transition">Cancel</button>
-              <button onClick={createFolder} className="px-3 py-1.5 text-sm rounded-lg bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">Create</button>
-            </div>
-          </div>
-        </div>
-      )}
+      </FadeUp>
 
       <Modal open={!!deleteTarget} title="Delete file?"
         body={`Delete "${deleteTarget?.name}"? This cannot be undone.`}
         confirmLabel="Delete" danger onConfirm={deleteFile} onClose={() => setDeleteTarget(null)} />
-      </FadeUp>
+
+      <NameModal open={newFolderOpen} title="New Folder" placeholder="folder-name"
+        value={newFolderName} onChange={setNewFolderName} onConfirm={createFolder}
+        onClose={() => { setNewFolderOpen(false); setNewFolderName('') }} />
+
+      <NameModal open={newFileOpen} title="New File" placeholder="filename.txt"
+        value={newFileName} onChange={setNewFileName} onConfirm={createFile}
+        onClose={() => { setNewFileOpen(false); setNewFileName('') }} />
+
+      <NameModal open={!!renameTarget} title={`Rename "${renameTarget?.name}"`} placeholder="new-name"
+        value={renameName} onChange={setRenameName} onConfirm={renameFile}
+        onClose={() => { setRenameTarget(null); setRenameName('') }} />
     </PanelLayout>
   )
 }

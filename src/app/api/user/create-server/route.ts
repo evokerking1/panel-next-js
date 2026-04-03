@@ -3,7 +3,6 @@ import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
 import { daemonUrl } from '@/lib/daemon';
-import { Buffer } from 'buffer';
 
 function pickAvailablePort(allocated: number[], used: number[]): number | null {
   for (const port of allocated) {
@@ -32,7 +31,6 @@ async function getSessionUser(req: NextRequest) {
   return session.user ?? null;
 }
 
-// GET — return nodes, images, limits so the page can render the form
 export async function GET(req: NextRequest) {
   const sessionUser = await getSessionUser(req);
   if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -75,7 +73,6 @@ export async function GET(req: NextRequest) {
   });
 }
 
-// POST — create the server
 export async function POST(req: NextRequest) {
   const sessionUser = await getSessionUser(req);
   if (!sessionUser) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -166,7 +163,6 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Kick off installation in the background — don't await
   installServer(created, node, image, imageVariables, assignedPort).catch(() => {});
 
   return NextResponse.json({ success: true, serverUUID: created.UUID });
@@ -182,8 +178,8 @@ async function installServer(server: any, node: any, image: any, imageVariables:
   serverEnv.push({ env: 'SERVER_CPU',    value: String(server.Cpu) });
 
   const env = serverEnv.reduce((acc: any, curr: any) => { acc[curr.env] = curr.value; return acc; }, {});
-  const authHeader = `Basic ${Buffer.from(`Airlink:${node.key}`).toString('base64')}`;
   const base = daemonUrl(node.address, node.port);
+  const auth = { username: 'Airlink', password: node.key };
 
   if (!image.scripts) return;
   let scripts: any = {};
@@ -195,7 +191,7 @@ async function installServer(server: any, node: any, image: any, imageVariables:
       await axios.post(
         `${base}/container/installer`,
         { id: server.UUID, script: inst.script, container: inst.container, entrypoint: inst.entrypoint || 'bash', env },
-        { headers: { 'Content-Type': 'application/json', Authorization: authHeader }, timeout: 600000 }
+        { auth, timeout: 600000 }
       );
     } else if (Array.isArray(scripts.install)) {
       let dockerImageValue: string | undefined;
@@ -214,7 +210,7 @@ async function installServer(server: any, node: any, image: any, imageVariables:
             url: s.url, onStartup: s.onStart, ALVKT: s.ALVKT, fileName: s.fileName,
           })),
         },
-        { headers: { 'Content-Type': 'application/json', Authorization: authHeader }, timeout: 600000 }
+        { auth, timeout: 600000 }
       );
     }
     await prisma.server.update({ where: { id: server.id }, data: { Queued: false } });

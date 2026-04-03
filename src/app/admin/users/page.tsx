@@ -1,5 +1,7 @@
 'use client'
 
+import { Pencil, Trash2 , Loader2} from 'lucide-react'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -84,7 +86,7 @@ export default function AdminUsersPage() {
           <div className="overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40" id="userTable">
             {loading ? (
               <div className="flex items-center justify-center h-32">
-                <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+                <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
               </div>
             ) : (
               <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/10">
@@ -127,11 +129,11 @@ export default function AdminUsersPage() {
                         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                           <Link href={`/admin/users/${u.id}`}
                             className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="m16.862 4.487 1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931Z" /></svg>
+                            <Pencil className="w-4 h-4" />
                           </Link>
                           <button onClick={() => setDeleteTarget(u)}
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </td>

@@ -3,9 +3,11 @@
 import { useState, useEffect, use } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
+import InstallBanner from '@/components/server/InstallBanner'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
+import { Loader2 } from 'lucide-react'
 
 interface ServerVariable {
   name: string
@@ -100,7 +102,7 @@ function Inner({ uuid }: { uuid: string }) {
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+      <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
     </div>
   )
 
@@ -110,7 +112,18 @@ function Inner({ uuid }: { uuid: string }) {
     <div className="px-4 sm:px-8 pt-4 pb-8 space-y-6">
       {/* Startup command */}
       <form onSubmit={saveCommand} className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5">
-        <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">Startup Command</h2>
+        <div className="flex items-center gap-3 mb-1 flex-wrap">
+          <h2 className="text-sm font-semibold text-neutral-800 dark:text-white">Startup Command</h2>
+          {!server?.allowStartupEdit ? (
+            <span className="inline-flex items-center rounded-md bg-red-50 dark:bg-red-900/20 px-2 py-1 text-xs font-medium text-red-700 dark:text-red-400 ring-1 ring-inset ring-red-600/20 dark:ring-red-500/30">
+              Editing Disabled
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-md bg-green-50 dark:bg-green-900/20 px-2 py-1 text-xs font-medium text-green-700 dark:text-green-400 ring-1 ring-inset ring-green-600/20 dark:ring-green-500/30">
+              Editing Enabled
+            </span>
+          )}
+        </div>
         <p className="text-xs text-neutral-500 mb-4">The command used to start this server. Changes take effect on next restart.</p>
         <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Start command</label>
         <input type="text" value={startCmd} onChange={e => setStartCmd(e.target.value)}
@@ -130,7 +143,12 @@ function Inner({ uuid }: { uuid: string }) {
       {/* Docker image */}
       {allDockerOptions.length > 0 && (
         <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5">
-          <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">Docker Image</h2>
+          <div className="flex items-center gap-3 mb-1 flex-wrap">
+            <h2 className="text-sm font-semibold text-neutral-800 dark:text-white">Docker Image</h2>
+            <span className="inline-flex items-center rounded-md bg-blue-50 dark:bg-blue-900/20 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-400 ring-1 ring-inset ring-blue-600/20 dark:ring-blue-500/30">
+              Requires Restart
+            </span>
+          </div>
           <p className="text-xs text-neutral-500 mb-4">Select the docker image to run this server with.</p>
           <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)} className={inputClass}>
             {allDockerOptions.map(({ label, image }) => (
@@ -202,7 +220,7 @@ export default function ServerStartupPage({ params }: { params: Promise<{ uuid: 
       </div>
       </FadeUp>
       <ServerTabs uuid={uuid} />
-      <FadeUp delay={0.06}><div className="mt-4"><Inner uuid={uuid} /></div></FadeUp>
+      <FadeUp delay={0.06}><InstallBanner uuid={uuid} installing={false} /><div className="mt-4"><Inner uuid={uuid} /></div></FadeUp>
     </PanelLayout>
   )
 }

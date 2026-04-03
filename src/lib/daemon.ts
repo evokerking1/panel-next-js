@@ -34,9 +34,11 @@ export function daemonSchemeSync(): 'http' | 'https' {
   return cachedScheme;
 }
 
-export async function daemonUrl(address: string, port: number): Promise<string> {
-  const scheme = await daemonScheme();
-  return `${scheme}://${address}:${port}`;
+export function daemonUrl(address: string, port: number): string {
+  if (Date.now() - schemeCachedAt > SCHEME_CACHE_TTL_MS) {
+    refreshSchemeCache();
+  }
+  return `${cachedScheme}://${address}:${port}`;
 }
 
 function hmacSign(key: string, method: string, path: string, body: string, timestamp: number): string {
@@ -87,7 +89,7 @@ export async function daemonGet<T = unknown>(
   path: string,
   params?: Record<string, string>
 ): Promise<T> {
-  const base = await daemonUrl(address, port);
+  const base = daemonUrl(address, port);
   const resp = await axios.get<T>(`${base}${path}`, {
     auth: { username: 'Airlink', password: key },
     params,
@@ -103,7 +105,7 @@ export async function daemonPost<T = unknown>(
   path: string,
   data?: unknown
 ): Promise<T> {
-  const base = await daemonUrl(address, port);
+  const base = daemonUrl(address, port);
   const resp = await axios.post<T>(`${base}${path}`, data, {
     auth: { username: 'Airlink', password: key },
     timeout: 8000,
@@ -113,7 +115,7 @@ export async function daemonPost<T = unknown>(
 
 export async function checkNodeOnline(address: string, port: number, key: string): Promise<boolean> {
   try {
-    const base = await daemonUrl(address, port);
+    const base = daemonUrl(address, port);
     await axios.get(base, {
       auth: { username: 'Airlink', password: key },
       timeout: 3000,

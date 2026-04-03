@@ -4,6 +4,9 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { getIronSession } from 'iron-session';
 import { IncomingMessage, ServerResponse } from 'http';
+import { installDaemonRequestInterceptor, daemonSchemeSync } from './src/lib/daemon';
+
+installDaemonRequestInterceptor();
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || '0.0.0.0';
@@ -34,13 +37,13 @@ async function getSessionUser(req: IncomingMessage) {
 
 async function proxyConsole(
   clientWs: WebSocket,
-  serverUUID: string,
   daemonWsUrl: string,
+  nodeKey: string,
 ) {
   const daemonWs = new WebSocket(daemonWsUrl);
 
   daemonWs.on('open', () => {
-    // daemon expects auth event
+    daemonWs.send(JSON.stringify({ event: 'auth', args: [nodeKey] }));
   });
 
   daemonWs.on('message', (data) => {
@@ -68,6 +71,36 @@ async function proxyConsole(
   });
 }
 
+async function proxyStatus(
+  clientWs: WebSocket,
+  daemonWsUrl: string,
+  nodeKey: string,
+) {
+  const daemonWs = new WebSocket(daemonWsUrl);
+
+  daemonWs.on('open', () => {
+    daemonWs.send(JSON.stringify({ event: 'auth', args: [nodeKey] }));
+  });
+
+  daemonWs.on('message', (data) => {
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(data);
+    }
+  });
+
+  daemonWs.on('error', () => {
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+  });
+
+  daemonWs.on('close', () => {
+    if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+  });
+
+  clientWs.on('close', () => {
+    if (daemonWs.readyState !== WebSocket.CLOSED) daemonWs.close();
+  });
+}
+
 async function startServer() {
   const app = next({ dev, hostname, port });
   const handle = app.getRequestHandler();
@@ -84,16 +117,17 @@ async function startServer() {
   httpServer.on('upgrade', async (req, socket, head) => {
     const url = req.url || '';
 
-    // Only handle /api/server/:uuid/console
     const consoleMatch = url.match(/^\/api\/server\/([^/]+)\/console/);
-    if (!consoleMatch) {
+    const statusMatch = url.match(/^\/api\/server\/([^/]+)\/status/);
+    const eventsMatch = url.match(/^\/api\/server\/([^/]+)\/events/);
+
+    if (!consoleMatch && !statusMatch && !eventsMatch) {
       socket.destroy();
       return;
     }
 
-    const serverUUID = consoleMatch[1];
+    const serverUUID = (consoleMatch || statusMatch || eventsMatch)![1];
 
-    // Authenticate
     const sessionUser = await getSessionUser(req);
     if (!sessionUser) {
       socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -103,7 +137,6 @@ async function startServer() {
 
     wss.handleUpgrade(req, socket, head, async (clientWs) => {
       try {
-        // Dynamically import prisma to avoid top-level import issues
         const { default: prisma } = await import('./src/lib/prisma');
         const server = await prisma.server.findUnique({
           where: { UUID: serverUUID },
@@ -116,19 +149,27 @@ async function startServer() {
           return;
         }
 
-        // Auth check — owner or admin
         if (server.ownerId !== sessionUser.id && !sessionUser.isAdmin) {
           clientWs.send(JSON.stringify({ error: 'Forbidden' }));
           clientWs.close();
           return;
         }
 
-        const scheme = process.env.ENFORCE_DAEMON_HTTPS === 'true' ? 'wss' : 'ws';
-        const daemonWsUrl = `${scheme}://${server.node.address}:${server.node.port}/container/${serverUUID}`;
+        const httpScheme = daemonSchemeSync();
+        const wsScheme = httpScheme === 'https' ? 'wss' : 'ws';
 
-        await proxyConsole(clientWs, serverUUID, daemonWsUrl);
+        if (consoleMatch) {
+          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/container/${serverUUID}`;
+          await proxyConsole(clientWs, daemonWsUrl, server.node.key);
+        } else if (eventsMatch) {
+          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/containerevents/${serverUUID}`;
+          await proxyStatus(clientWs, daemonWsUrl, server.node.key);
+        } else {
+          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/containerstatus/${serverUUID}`;
+          await proxyStatus(clientWs, daemonWsUrl, server.node.key);
+        }
       } catch (err) {
-        console.error('[WS] Error setting up console proxy:', err);
+        console.error('[WS] Error setting up proxy:', err);
         clientWs.close();
       }
     });

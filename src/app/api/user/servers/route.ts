@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
@@ -17,8 +16,9 @@ export async function GET(req: NextRequest) {
 
   const nodeCache: Record<number, boolean> = {};
 
+  type ServerRow = (typeof servers)[number];
   const serversWithStats = await Promise.all(
-    servers.map(async server => {
+    servers.map(async (server: ServerRow) => {
       if (nodeCache[server.nodeId] === undefined) {
         try {
           await axios.get(daemonUrl(server.node.address, server.node.port), {

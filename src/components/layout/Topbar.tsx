@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/hooks/useAuth'
+import { Search, ChevronLeft, Moon, Sun } from 'lucide-react'
 
 interface ServerResult {
   UUID: string
@@ -11,7 +12,6 @@ interface ServerResult {
   Suspended: boolean
 }
 
-// desktop theme toggle — fixed top right, only visible on lg+
 function DesktopThemeToggle() {
   const [dark, setDark] = useState(false)
   useEffect(() => {
@@ -39,7 +39,6 @@ export default function Topbar() {
   const [results, setResults] = useState<ServerResult[]>([])
   const [showResults, setShowResults] = useState(false)
   const [searching, setSearching] = useState(false)
-  // mobile search is DOM-toggled exactly like the express panel does it
   const [mobileSearchOpen, setMobileSearchOpen] = useState(false)
   const [settings, setSettings] = useState<{ title?: string; logo?: string } | null>(null)
   const [mobileDark, setMobileDark] = useState(false)
@@ -124,10 +123,9 @@ export default function Topbar() {
     <>
       <DesktopThemeToggle />
 
-      {/* ── MOBILE TOP BAR — copied from mobile/components/template.ejs ── */}
+      {/* ── MOBILE TOP BAR ── */}
       <div className="mobile-top-bar lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-b border-neutral-200/30 dark:border-white/5">
 
-        {/* default state */}
         <div id="topbar-default" className={`${mobileSearchOpen ? 'hidden' : 'flex'} items-center justify-between h-14 px-4`}>
           <Link href="/dashboard" className="flex items-center gap-2 min-w-0 flex-1 mr-3">
             <img src={logo} alt="Logo"
@@ -138,11 +136,8 @@ export default function Topbar() {
           <div className="flex items-center gap-2.5 shrink-0">
             <button onClick={openMobileSearch}
               className="p-1.5 rounded-lg text-neutral-500 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-white/5 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-                <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clipRule="evenodd" />
-              </svg>
+              <Search className="h-5 w-5" />
             </button>
-            {/* mobile theme toggle — same as express: pill with sliding dot */}
             <button onClick={toggleMobileTheme}
               className="w-11 h-6 flex items-center bg-gray-300 dark:bg-neutral-700/70 rounded-full p-1 transition-colors duration-500">
               <span className="dot bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-500 border border-neutral-950/20"
@@ -157,17 +152,12 @@ export default function Topbar() {
           </div>
         </div>
 
-        {/* search state */}
         <div id="topbar-search" className={`${mobileSearchOpen ? 'flex' : 'hidden'} items-center h-14 px-3 gap-2`}>
           <button onClick={closeMobileSearch} className="p-1.5 text-neutral-500 dark:text-neutral-400 shrink-0">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5">
-              <path fillRule="evenodd" d="M7.72 12.53a.75.75 0 0 1 0-1.06l7.5-7.5a.75.75 0 1 1 1.06 1.06L9.31 12l6.97 6.97a.75.75 0 1 1-1.06 1.06l-7.5-7.5Z" clipRule="evenodd" />
-            </svg>
+            <ChevronLeft className="h-5 w-5" />
           </button>
           <div className="flex-1 flex items-center bg-neutral-100 dark:bg-neutral-800 rounded-xl px-3 py-2 gap-2">
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4 text-neutral-400 shrink-0">
-              <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clipRule="evenodd" />
-            </svg>
+            <Search className="h-4 w-4 text-neutral-400 shrink-0" />
             <input ref={mobileInputRef} type="search" autoComplete="off" placeholder="Search navigation..."
               value={query}
               onChange={e => { setQuery(e.target.value); setShowResults(true) }}
@@ -175,7 +165,6 @@ export default function Topbar() {
           </div>
         </div>
 
-        {/* mobile search results — same position as express: below top bar */}
         {mobileSearchOpen && query.length > 0 && (
           <div className="fixed top-14 left-0 right-0 z-40 bg-white/90 dark:bg-[#141414]/90 backdrop-blur-xl border-b border-neutral-200/30 dark:border-white/5 max-h-[60dvh] overflow-y-auto shadow-lg">
             {searching ? (
@@ -186,7 +175,13 @@ export default function Topbar() {
               <button key={s.UUID} onClick={() => handleResultClick(s.UUID)}
                 className="flex items-center gap-3 w-full px-4 py-3 border-b border-neutral-100 dark:border-white/5 last:border-0 hover:bg-neutral-50 dark:hover:bg-white/5 transition text-left">
                 <span className={`inline-flex h-1.5 w-1.5 rounded-full shrink-0 ${s.Suspended ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                <span className="text-sm text-neutral-800 dark:text-white flex-1 truncate">{s.name}</span>
+                <span className="text-sm text-neutral-800 dark:text-white flex-1 truncate">{s.name}
+                  {s.Suspended && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/20 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-400">
+                      Suspended
+                    </span>
+                  )}
+                </span>
                 <span className="text-xs text-neutral-400 font-mono shrink-0">{s.UUID.split('-')[0]}</span>
               </button>
             ))}
@@ -199,9 +194,7 @@ export default function Topbar() {
         <div className="flex flex-1 gap-x-4 self-stretch">
           <div className="relative flex flex-1 flex-col">
             <div className="lg:-ml-2 flex items-center w-fit mt-3.5 px-4 py-2 h-10 rounded-xl border border-neutral-300 dark:border-white/5 duration-200 hover:border-neutral-400 dark:hover:border-neutral-300/10 bg-transparent">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-neutral-400 shrink-0">
-                <path fillRule="evenodd" d="M10.5 3.75a6.75 6.75 0 1 0 0 13.5 6.75 6.75 0 0 0 0-13.5ZM2.25 10.5a8.25 8.25 0 1 1 14.59 5.28l4.69 4.69a.75.75 0 1 1-1.06 1.06l-4.69-4.69A8.25 8.25 0 0 1 2.25 10.5Z" clipRule="evenodd" />
-              </svg>
+              <Search className="h-5 w-5 text-neutral-400 shrink-0" />
               <input ref={desktopInputRef} value={query}
                 onChange={e => setQuery(e.target.value)}
                 onFocus={() => setShowResults(true)}
@@ -220,7 +213,13 @@ export default function Topbar() {
                   <button key={s.UUID} onClick={() => handleResultClick(s.UUID)}
                     className="w-full flex items-center gap-3 px-3 py-2 mt-1 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-left transition">
                     <span className={`inline-flex h-1.5 w-1.5 rounded-full shrink-0 ${s.Suspended ? 'bg-amber-500' : 'bg-emerald-500'}`} />
-                    <span className="text-sm text-neutral-800 dark:text-neutral-200 flex-1 truncate">{s.name}</span>
+                    <span className="text-sm text-neutral-800 dark:text-neutral-200 flex-1 truncate">{s.name}
+                      {s.Suspended && (
+                        <span className="ml-2 inline-flex items-center rounded-full bg-red-100 dark:bg-red-900/20 px-1.5 py-0.5 text-[10px] font-medium text-red-700 dark:text-red-400">
+                          Suspended
+                        </span>
+                      )}
+                    </span>
                     <span className="text-xs text-neutral-400 font-mono shrink-0">{s.UUID.split('-')[0]}</span>
                   </button>
                 ))}
@@ -232,5 +231,3 @@ export default function Topbar() {
     </>
   )
 }
-
-// ~ https://github.com/thavanish edited this shitty code

@@ -1,12 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef, use, useCallback } from 'react'
+import { Terminal } from '@xterm/xterm'
+import { FitAddon } from '@xterm/addon-fit'
+import '@xterm/xterm/css/xterm.css'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
+import InstallBanner from '@/components/server/InstallBanner'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { FadeUp } from '@/components/ui/Animate'
+import { Play, RotateCcw, Square, Copy, Loader2, Tag, Server, Hash, AlertTriangle } from 'lucide-react'
 
 interface ServerData {
   UUID: string
@@ -31,7 +36,7 @@ interface StatsCardProps {
 
 function StatsCard({ title, value, index }: StatsCardProps) {
   return (
-    <div className="stats-card overflow-hidden bg-white dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700/30 rounded-xl px-4 py-4 shadow-sm flex-1"
+    <div className="stats-card overflow-hidden bg-white dark:bg-neutral-800/50 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/30 rounded-xl px-4 py-4 shadow-sm hover:shadow-md transition-shadow duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 group flex-1"
       style={{ '--i': index } as React.CSSProperties}>
       <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}:</h2>
       <p className="mt-1 text-lg font-medium tracking-tight text-neutral-800 dark:text-white">{value}</p>
@@ -39,14 +44,15 @@ function StatsCard({ title, value, index }: StatsCardProps) {
   )
 }
 
-function ConsoleLine({ line }: { line: string }) {
-  const isError = /ERROR|WARN/i.test(line)
-  const isCmd = line.startsWith('> ')
-  return (
-    <div className={isError ? 'text-amber-400' : isCmd ? 'text-emerald-400' : 'text-neutral-300'}>
-      {line}
-    </div>
-  )
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = Math.floor(seconds % 60)
+  if (d > 0) return `${d}d ${h}h ${m}m`
+  if (h > 0) return `${h}h ${m}m`
+  if (m > 0) return `${m}m ${s}s`
+  return `${s}s`
 }
 
 export default function ServerConsolePage({ params }: { params: Promise<{ uuid: string }> }) {
@@ -59,13 +65,17 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   const [ramPct, setRamPct] = useState('0')
   const [cpuPct, setCpuPct] = useState('0')
   const [ramUsed, setRamUsed] = useState('0MB')
-  const [logs, setLogs] = useState<string[]>([])
+  const [uptime, setUptime] = useState('')
   const [command, setCommand] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
-  const logsEndRef = useRef<HTMLDivElement>(null)
+  const [daemonOffline, setDaemonOffline] = useState(false)
+  const daemonFailCount = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
+  const statusWsRef = useRef<WebSocket | null>(null)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const termRef = useRef<Terminal | null>(null)
+  const termContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
@@ -79,25 +89,140 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       .catch(() => {})
   }, [uuid])
 
+  useEffect(() => {
+    if (!termContainerRef.current) return
+
+    const term = new Terminal({
+      disableStdin: true,
+      lineHeight: 1.35,
+      fontFamily: 'Menlo, Monaco, Consolas, monospace',
+      fontSize: 12,
+      theme: {
+        foreground: '#c5c9d1',
+        background: '#141414',
+        selectionBackground: '#5DA5D580',
+        black: '#1E1E1D',
+        brightBlack: '#262625',
+        red: '#E54B4B',
+        green: '#9ECE58',
+        yellow: '#FAED70',
+        blue: '#396FE2',
+        magenta: '#BB80B3',
+        cyan: '#2DDAFD',
+        white: '#d0d0d0',
+        brightRed: '#FF5370',
+        brightGreen: '#C3E88D',
+        brightYellow: '#FFCB6B',
+        brightBlue: '#82AAFF',
+        brightMagenta: '#C792EA',
+        brightCyan: '#89DDFF',
+        brightWhite: '#ffffff',
+        cursor: '#c5c9d1',
+        cursorAccent: '#141414',
+      },
+      scrollback: 1000,
+      convertEol: true,
+    })
+
+    const fitAddon = new FitAddon()
+    term.loadAddon(fitAddon)
+    term.open(termContainerRef.current)
+    fitAddon.fit()
+    termRef.current = term
+
+    const onResize = () => fitAddon.fit()
+    window.addEventListener('resize', onResize)
+
+    return () => {
+      window.removeEventListener('resize', onResize)
+      term.dispose()
+      termRef.current = null
+    }
+  }, [])
+
   const pollStats = useCallback(() => {
     fetch(`/api/server/${uuid}/stats`)
       .then(r => r.json())
       .then(d => {
+        daemonFailCount.current = 0
+        setDaemonOffline(false)
         setStatus(d.running ? 'running' : 'stopped')
+        if (d.running && d.stats?.uptime != null) {
+          setUptime(formatUptime(d.stats.uptime))
+        } else {
+          setUptime('')
+        }
         if (d.stats) {
           setRamPct(d.stats.ramPct)
           setCpuPct(d.stats.cpuPct)
           setRamUsed(d.stats.ramUsed)
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        daemonFailCount.current += 1
+        if (daemonFailCount.current >= 3) setDaemonOffline(true)
+      })
   }, [uuid])
 
   useEffect(() => {
+    if (!server) return
+
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const statusWs = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/status`)
+    statusWsRef.current = statusWs
+    let statusWsConnected = false
+
+    statusWs.onopen = () => {
+      statusWsConnected = true
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
+    }
+
+    statusWs.onmessage = e => {
+      try {
+        const data = JSON.parse(e.data)
+        if (data.event === 'state') {
+          const running = data.args?.[0] === 'running'
+          setStatus(running ? 'running' : 'stopped')
+          if (!running) setUptime('')
+        } else if (data.event === 'stats') {
+          const stats = data.args?.[0]
+          if (stats) {
+            setRamPct(stats.memory?.percentage ?? '0')
+            setCpuPct(stats.cpu?.percentage ?? '0')
+            const bytes = stats.memory?.usage ?? 0
+            const mb = bytes / (1024 * 1024)
+            setRamUsed(mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `${mb.toFixed(0)}MB`)
+            if (stats.uptime != null) setUptime(formatUptime(stats.uptime))
+          }
+        }
+      } catch {}
+    }
+
+    statusWs.onerror = () => {
+      if (!statusWsConnected) {
+        pollStats()
+        pollingRef.current = setInterval(pollStats, 5000)
+      }
+    }
+
+    statusWs.onclose = () => {
+      if (statusWsConnected && !pollingRef.current) {
+        pollStats()
+        pollingRef.current = setInterval(pollStats, 5000)
+      }
+    }
+
     pollStats()
     pollingRef.current = setInterval(pollStats, 5000)
-    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
-  }, [pollStats])
+
+    return () => {
+      statusWs.close()
+      if (pollingRef.current) clearInterval(pollingRef.current)
+    }
+  }, [uuid, server, pollStats])
 
   useEffect(() => {
     if (!server) return
@@ -107,18 +232,14 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     ws.onmessage = e => {
       try {
         const data = JSON.parse(e.data)
-        if (data.line) setLogs(prev => [...prev.slice(-500), data.line])
+        if (data.line) termRef.current?.writeln(data.line)
       } catch {
-        setLogs(prev => [...prev.slice(-500), e.data])
+        termRef.current?.writeln(e.data)
       }
     }
     ws.onerror = () => {}
     return () => { ws.close() }
   }, [uuid, server])
-
-  useEffect(() => {
-    logsEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [logs])
 
   async function powerAction(action: 'start' | 'stop' | 'restart') {
     setActionLoading(true)
@@ -143,7 +264,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   async function sendCommand() {
     const cmd = command.trim()
     if (!cmd || status !== 'running') return
-    setLogs(prev => [...prev, `> ${cmd}`])
+    termRef.current?.writeln(`> ${cmd}`)
     setCommand('')
     inputRef.current?.focus()
     try {
@@ -168,10 +289,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <svg className="animate-spin h-6 w-6 text-neutral-400" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-          </svg>
+          <Loader2 className="animate-spin h-6 w-6 text-neutral-400" />
         </div>
       </PanelLayout>
     )
@@ -185,40 +303,74 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       <div className="px-4 sm:px-8 pt-4">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
-            <ServerHeader name={server.name} description={server.description} status={status} />
+            <ServerHeader name={server.name} description={server.description} status={status} uptime={uptime} />
             <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-              <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{server.image.name}</span>
+              <span className="flex items-center gap-1.5">
+                <Tag className="h-3 w-3 text-neutral-400 shrink-0" />
+                <span className="text-[11px] text-neutral-500 dark:text-neutral-400 truncate">{server.image.name}</span>
+              </span>
               <span className="text-neutral-300 dark:text-neutral-600 text-[11px]">·</span>
-              <span className="text-[11px] text-neutral-500 dark:text-neutral-400">{server.node.name}</span>
+              <span className="flex items-center gap-1.5">
+                <Server className="h-3 w-3 text-neutral-400 shrink-0" />
+                <span className="text-[11px] text-neutral-500 dark:text-neutral-400">{server.node.name}</span>
+              </span>
               <span className="text-neutral-300 dark:text-neutral-600 text-[11px]">·</span>
-              <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">{uuid.split('-')[0]}</span>
+              <span className="flex items-center gap-1.5">
+                <Hash className="h-3 w-3 text-neutral-400 shrink-0" />
+                <span className="text-[11px] font-mono text-neutral-500 dark:text-neutral-400">{uuid.split('-')[0]}</span>
+              </span>
             </div>
           </div>
           <div className="flex gap-2 shrink-0">
             <button onClick={() => powerAction('start')}
               disabled={status === 'running' || status === 'starting' || server.Suspended || actionLoading}
               className={`${btnBase} bg-emerald-600 hover:bg-emerald-500 text-white`}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4"><path fillRule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clipRule="evenodd" /></svg>
+              <Play className="size-4" />
               Start
             </button>
             <button onClick={() => powerAction('restart')}
               disabled={status !== 'running' || server.Suspended || actionLoading}
               className={`${btnBase} bg-neutral-800 dark:bg-neutral-600 hover:bg-neutral-700 text-white`}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4"><path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0 1 12.548-3.364l1.903 1.903h-3.183a.75.75 0 1 0 0 1.5h4.992a.75.75 0 0 0 .75-.75V4.356a.75.75 0 0 0-1.5 0v3.18l-1.9-1.9A9 9 0 0 0 3.306 9.67a.75.75 0 1 0 1.45.388Zm15.408 3.352a.75.75 0 0 0-.919.53 7.5 7.5 0 0 1-12.548 3.364l-1.902-1.903h3.183a.75.75 0 0 0 0-1.5H2.984a.75.75 0 0 0-.75.75v4.992a.75.75 0 0 0 1.5 0v-3.18l1.9 1.9a9 9 0 0 0 15.059-4.035.75.75 0 0 0-.53-.918Z" clipRule="evenodd" /></svg>
+              <RotateCcw className="size-4" />
               Restart
             </button>
             <button onClick={() => powerAction('stop')}
               disabled={status !== 'running' || server.Suspended || actionLoading}
               className={`${btnBase} bg-red-600 hover:bg-red-500 text-white`}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="size-4"><path fillRule="evenodd" d="M4.5 7.5a3 3 0 0 1 3-3h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9a3 3 0 0 1-3-3v-9Z" clipRule="evenodd" /></svg>
+              <Square className="size-4" />
               Stop
             </button>
           </div>
         </div>
+
+        {server.Suspended && (
+          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+            <div>
+              <p className="text-sm font-medium text-red-500">Server Suspended</p>
+              <p className="text-xs text-red-400">This server has been suspended by an administrator.</p>
+            </div>
+          </div>
+        )}
+
+        {daemonOffline && (
+          <div className="mt-3 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-red-500" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-red-500">Connection Error</p>
+              <p className="text-xs text-red-400">The daemon appears to be offline. Server controls are unavailable.</p>
+            </div>
+            <button onClick={() => window.location.reload()}
+              className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-medium rounded-lg transition">
+              Retry
+            </button>
+          </div>
+        )}
       </div>
       </FadeUp>
 
       <ServerTabs uuid={uuid} />
+      <InstallBanner uuid={uuid} installing={server.Installing} />
 
       <FadeUp delay={0.08}>
       <div className="flex flex-col lg:flex-row px-4 sm:px-8 mt-4 gap-5 pb-8">
@@ -227,12 +379,8 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
             <div className="flex items-center gap-2 px-3 py-2 bg-[#1c1c1c] border-b border-neutral-800 shrink-0">
               <span className="text-[11px] font-medium text-neutral-600 select-none tracking-wide">console</span>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 font-mono text-[12px] leading-[1.6]"
-              style={{ background: '#141414', minHeight: 420 }}>
-              {logs.length === 0
-                ? <p className="text-neutral-600 italic">Server is {status}. Output will appear here.</p>
-                : logs.map((line, i) => <ConsoleLine key={i} line={line} />)}
-              <div ref={logsEndRef} />
+            <div className="bg-[#141414] flex-1 relative">
+              <div ref={termContainerRef} style={{ height: 420 }} />
             </div>
           </div>
           <div className="relative">
@@ -246,7 +394,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
         </div>
 
         <div className="w-full lg:w-1/3 space-y-4 flex flex-col">
-          <div className="stats-card bg-white dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700/30 rounded-xl px-4 py-4 shadow-sm" style={{ '--i': 0 } as React.CSSProperties}>
+          <div className="stats-card bg-white dark:bg-neutral-800/50 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/30 rounded-xl px-4 py-4 shadow-sm hover:shadow-md transition-shadow duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 group" style={{ '--i': 0 } as React.CSSProperties}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">Address:</h2>
@@ -254,9 +402,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
               </div>
               <button onClick={() => { navigator.clipboard.writeText(serverIP); showToast('Copied!', 'success') }}
                 className="shrink-0 mt-1 rounded-lg p-1.5 bg-neutral-100 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600/50 transition-colors" title="Copy">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-3.5 w-3.5 text-neutral-500">
-                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                </svg>
+                <Copy className="h-3.5 w-3.5 text-neutral-500" />
               </button>
             </div>
           </div>

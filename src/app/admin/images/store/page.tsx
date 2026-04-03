@@ -1,5 +1,7 @@
 'use client'
 
+import { CheckCircle2, Download, Info, RefreshCw, ChevronRight, X , Loader2} from 'lucide-react'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import PanelLayout from '@/components/layout/PanelLayout'
@@ -118,9 +120,7 @@ export default function ImageStorePage() {
                 <Link href="/admin/images" className="text-sm text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
                   Images
                 </Link>
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-3 h-3 text-neutral-400">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                </svg>
+                <ChevronRight className="w-3 h-3 text-neutral-400" />
                 <span className="text-sm text-neutral-600 dark:text-neutral-300">Store</span>
               </div>
               <h1 className="text-base font-medium text-neutral-800 dark:text-white">Image Store</h1>
@@ -130,9 +130,7 @@ export default function ImageStorePage() {
               {statusText && <span className="text-xs text-neutral-400 hidden sm:block">{statusText}</span>}
               <button onClick={doRefresh} disabled={refreshing}
                 className="flex items-center gap-1.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 hover:bg-neutral-100 dark:hover:bg-white/5 text-neutral-700 dark:text-neutral-300 px-3 py-2 text-sm font-medium transition">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
-                </svg>
+                <RefreshCw className="w-4 h-4" />
                 Refresh
               </button>
             </div>
@@ -153,7 +151,7 @@ export default function ImageStorePage() {
 
           {loading && (
             <div className="flex items-center gap-3 py-16 text-neutral-400">
-              <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+              <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
               <span className="text-sm">Loading catalogue…</span>
             </div>
           )}
@@ -204,9 +202,7 @@ export default function ImageStorePage() {
                 {selected.author && <p className="text-xs text-neutral-400 mt-0.5">{selected.author}</p>}
               </div>
               <button onClick={() => setSelected(null)} className="w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                </svg>
+                <X className="w-4 h-4" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-5 py-4">

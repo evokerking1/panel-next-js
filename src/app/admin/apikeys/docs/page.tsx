@@ -1,5 +1,7 @@
 'use client'
 
+import { ChevronDown } from 'lucide-react'
+
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import PanelLayout from '@/components/layout/PanelLayout'
@@ -177,12 +179,7 @@ export default function ApiDocsPage() {
                             </span>
                             <code className="text-sm font-mono text-neutral-700 dark:text-neutral-300 flex-1 min-w-0 truncate">{ep.path}</code>
                             <span className="text-xs text-neutral-400 hidden sm:block">{ep.description}</span>
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor"
-                              className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                            >
-                              <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                            </svg>
+                            <ChevronDown className={`w-4 h-4 text-neutral-400 shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
                           </button>
 
                           {isOpen && (

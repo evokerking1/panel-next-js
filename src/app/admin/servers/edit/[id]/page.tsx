@@ -1,5 +1,7 @@
 'use client'
 
+import { Pencil , Loader2} from 'lucide-react'
+
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -103,7 +105,7 @@ export default function AdminServerEditPage({ params }: { params: Promise<{ id: 
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+          <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
         </div>
       </PanelLayout>
     )
@@ -193,9 +195,7 @@ export default function AdminServerEditPage({ params }: { params: Promise<{ id: 
                 <div className="bg-neutral-100 dark:bg-neutral-700/20 rounded-lg p-4 border border-neutral-300 dark:border-white/5 mt-4">
                   <div className="flex flex-col md:flex-row md:items-center justify-between">
                     <div className="flex items-center mb-2 md:mb-0">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-blue-500 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
+                      <Pencil className="h-6 w-6 text-blue-500 mr-3" />
                       <div>
                         <h3 className="text-sm font-medium text-neutral-800 dark:text-white">Startup Command Permissions</h3>
                         <p className="text-xs text-neutral-600 dark:text-neutral-400">When enabled, users can modify the startup command.</p>

@@ -3,11 +3,13 @@
 import { useState, useEffect, use } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
+import InstallBanner from '@/components/server/InstallBanner'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
 import { useRouter } from 'next/navigation'
+import { Loader2 } from 'lucide-react'
 
 interface ServerData {
   id: number
@@ -19,14 +21,21 @@ interface ServerData {
   Storage: number
   Ports: string
   Suspended: boolean
+  Installing: boolean
   node: { name: string; address: string; port: number }
   image: { name: string }
   owner: { username?: string; email: string }
 }
 
+interface SftpCredentials {
+  username: string
+  password: string
+  host: string
+}
+
 function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5 mb-5">
+    <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5 mb-5 hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">
       <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">{title}</h2>
       {desc && <p className="text-xs text-neutral-500 mb-4">{desc}</p>}
       {children}
@@ -55,6 +64,8 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
   const [saving, setSaving] = useState(false)
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [sftpCredentials, setSftpCredentials] = useState<SftpCredentials | null>(null)
+  const [fetchingSftp, setFetchingSftp] = useState(false)
 
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
@@ -115,12 +126,30 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
     setDeleteOpen(false)
   }
 
+  async function getSftpCredentials() {
+    setFetchingSftp(true)
+    setSftpCredentials(null)
+    try {
+      const res = await fetch(`/api/server/${uuid}/sftp`, { method: 'POST' })
+      const d = await res.json()
+      if (res.ok && d.credentials) {
+        setSftpCredentials(d.credentials)
+      } else {
+        showToast(d.error || 'Failed to get SFTP credentials.', 'error')
+      }
+    } catch {
+      showToast('Network error.', 'error')
+    } finally {
+      setFetchingSftp(false)
+    }
+  }
+
   const inputClass = "w-full rounded-xl text-sm px-4 py-2 bg-neutral-100 dark:bg-neutral-600/20 border border-neutral-200 dark:border-white/5 text-neutral-800 dark:text-white focus:border-neutral-400 dark:focus:border-neutral-600 outline-none transition"
 
   if (loading) return (
     <PanelLayout>
       <div className="flex items-center justify-center h-64">
-        <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
       </div>
     </PanelLayout>
   )
@@ -141,6 +170,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
       </FadeUp>
       <ServerTabs uuid={uuid} />
       <FadeUp delay={0.06}>
+      <InstallBanner uuid={uuid} installing={server?.Installing ?? false} />
       <div className="px-4 sm:px-8 mt-4 pb-8">
         <form onSubmit={saveSettings}>
           <Section title="General" desc="Basic server information.">
@@ -173,6 +203,21 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
             <InfoRow label="Owner" value={server?.owner.username || server?.owner.email || '—'} />
             <InfoRow label="Status" value={server?.Suspended ? 'Suspended' : 'Active'} />
           </div>
+        </Section>
+
+        <Section title="SFTP Access" desc="Get temporary credentials to connect via SFTP.">
+          <button type="button" onClick={getSftpCredentials} disabled={fetchingSftp}
+            className="px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-50 transition flex items-center gap-2">
+            {fetchingSftp && <Loader2 className="w-4 h-4 animate-spin" />}
+            {fetchingSftp ? 'Fetching...' : 'Get SFTP credentials'}
+          </button>
+          {sftpCredentials && (
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <InfoRow label="Host" value={sftpCredentials.host} />
+              <InfoRow label="Username" value={sftpCredentials.username} />
+              <InfoRow label="Password" value={sftpCredentials.password} />
+            </div>
+          )}
         </Section>
 
         {user?.isAdmin && (

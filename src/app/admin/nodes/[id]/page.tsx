@@ -1,5 +1,7 @@
 'use client'
 
+import { X , Loader2} from 'lucide-react'
+
 import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -26,10 +28,28 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
   const [node, setNode] = useState<NodeData | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [nodeStats, setNodeStats] = useState<Record<string, unknown> | null>(null)
+  const [statsLoading, setStatsLoading] = useState(false)
+  const [statsError, setStatsError] = useState<string | null>(null)
   const [form, setForm] = useState({ name: '', ram: '', disk: '', cpu: '', address: '', port: '' })
   const [allocatedPorts, setAllocatedPorts] = useState<number[]>([])
   const [portInput, setPortInput] = useState('')
   const [usedPorts, setUsedPorts] = useState<Set<number>>(new Set())
+
+  async function fetchStats() {
+    setStatsLoading(true)
+    setStatsError(null)
+    try {
+      const res = await fetch(`/api/admin/nodes/${id}/stats`)
+      const d = await res.json()
+      if (res.ok) setNodeStats(d.stats)
+      else setStatsError(d.error || 'Failed to fetch stats.')
+    } catch {
+      setStatsError('Could not reach the node.')
+    } finally {
+      setStatsLoading(false)
+    }
+  }
 
   useEffect(() => {
     fetch(`/api/admin/nodes/${id}`)
@@ -59,7 +79,7 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
         setUsedPorts(used)
       })
       .catch(() => showToast('Failed to load node', 'error'))
-      .finally(() => setLoading(false))
+      .finally(() => { setLoading(false); fetchStats() })
   }, [id])
 
   function setField(k: string, v: string) { setForm(f => ({ ...f, [k]: v })) }
@@ -109,7 +129,7 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+          <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
         </div>
       </PanelLayout>
     )
@@ -181,7 +201,7 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
                             </span>
                             <button onClick={() => removePort(p)} disabled={inUse}
                               className={`ml-2 text-neutral-500 hover:text-red-500 transition-colors ${inUse ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                              <X className="w-4 h-4" />
                             </button>
                           </div>
                         )
@@ -207,6 +227,34 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
                   </button>
                 </div>
               </div>
+            </div>
+          </div>
+        </FadeUp>
+
+        <FadeUp delay={0.1}>
+          <div className="mt-6 px-4 sm:px-6">
+            <div className="bg-white dark:bg-neutral-800/30 border border-neutral-200 dark:border-white/5 rounded-xl p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-sm font-semibold text-neutral-800 dark:text-white">Node Stats</h2>
+                <button onClick={fetchStats} disabled={statsLoading}
+                  className="px-3 py-1.5 text-xs rounded-lg border border-neutral-200 dark:border-white/10 text-neutral-500 hover:bg-neutral-100 dark:hover:bg-white/5 transition disabled:opacity-50">
+                  {statsLoading ? 'Loading...' : 'Refresh'}
+                </button>
+              </div>
+              {statsError ? (
+                <p className="text-sm text-red-500">{statsError}</p>
+              ) : nodeStats ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  {Object.entries(nodeStats).map(([key, val]) => (
+                    <div key={key}>
+                      <p className="text-xs text-neutral-500 mb-0.5 capitalize">{key}</p>
+                      <p className="text-sm text-neutral-700 dark:text-neutral-300 font-mono">{String(val)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-neutral-400">No stats available.</p>
+              )}
             </div>
           </div>
         </FadeUp>

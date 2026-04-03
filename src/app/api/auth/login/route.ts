@@ -3,6 +3,20 @@ import bcrypt from 'bcryptjs';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 
+const loginAttempts = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip);
+  if (!entry || entry.resetAt < now) {
+    loginAttempts.set(ip, { count: 1, resetAt: now + 60_000 });
+    return true;
+  }
+  if (entry.count >= 20) return false;
+  entry.count++;
+  return true;
+}
+
 async function getSecuritySettings() {
   try {
     const s = await prisma.settings.findUnique({ where: { id: 1 } });
@@ -16,6 +30,12 @@ async function getSecuritySettings() {
 }
 
 export async function POST(req: NextRequest) {
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0] || req.headers.get('x-real-ip') || 'unknown';
+
+  if (!checkRateLimit(ip)) {
+    return NextResponse.json({ error: 'too_many_requests' }, { status: 429 });
+  }
+
   const res = NextResponse.next();
   const body = await req.json().catch(() => ({}));
   const { identifier, password } = body as { identifier: string; password: string };

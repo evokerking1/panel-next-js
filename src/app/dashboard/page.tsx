@@ -7,6 +7,7 @@ import { useToastContext } from '@/components/layout/PanelLayout'
 import Modal from '@/components/ui/Modal'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp, AnimatedList, AnimatePresence, LayoutGroup } from '@/components/ui/Animate'
+import { Loader2, Trash2, LayoutGrid, List, Plus, FolderPlus, Server, Folder, X } from 'lucide-react'
 
 interface Server {
   UUID: string
@@ -26,7 +27,7 @@ interface Server {
   owner: { username: string; avatar?: string }
 }
 
-interface Folder {
+interface FolderData {
   id: number
   name: string
   members: { serverUUID: string }[]
@@ -52,11 +53,11 @@ function StatusBadge({ status }: { status?: string }) {
   )
 }
 
-function ServerCard({ server, onDragStart }: { server: Server; onDragStart: (uuid: string, name: string) => void }) {
+function ServerCard({ server, onDragStart }: { server: Server; onDragStart: (uuid: string, name: string, e: React.DragEvent) => void }) {
   const avatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(server.owner.username)}`
   return (
     <div className="group relative bg-white dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 shadow-sm p-4 hover:border-neutral-300 dark:hover:border-white/10 hover:shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing"
-      draggable onDragStart={() => onDragStart(server.UUID, server.name)}>
+      draggable onDragStart={e => onDragStart(server.UUID, server.name, e)}>
       <Link href={`/server/${server.UUID}`} className="block">
         <div className="flex items-start justify-between mb-3">
           <div className="min-w-0 flex-1 mr-3">
@@ -91,7 +92,7 @@ function ServerCard({ server, onDragStart }: { server: Server; onDragStart: (uui
   )
 }
 
-function FolderCard({ folder, onDrop, onClick }: { folder: Folder; onDrop: (id: number) => void; onClick: (f: Folder) => void }) {
+function FolderCard({ folder, onDrop, onClick }: { folder: FolderData; onDrop: (id: number) => void; onClick: (f: FolderData) => void }) {
   const [dragOver, setDragOver] = useState(false)
   return (
     <div
@@ -104,9 +105,7 @@ function FolderCard({ folder, onDrop, onClick }: { folder: Folder; onDrop: (id: 
       onDragLeave={() => setDragOver(false)}
       onDrop={e => { e.preventDefault(); setDragOver(false); onDrop(folder.id) }}
       onClick={() => onClick(folder)}>
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-5 w-5 text-amber-500 shrink-0">
-        <path d="M19.5 21a3 3 0 0 0 3-3v-4.5a3 3 0 0 0-3-3h-15a3 3 0 0 0-3 3V18a3 3 0 0 0 3 3h15ZM1.5 10.146V6a3 3 0 0 1 3-3h5.379a2.25 2.25 0 0 1 1.59.659l2.122 2.121c.14.141.331.22.53.22H19.5a3 3 0 0 1 3 3v1.146A4.483 4.483 0 0 0 19.5 12h-15a4.483 4.483 0 0 0-3 1.146Z" />
-      </svg>
+      <Folder className="h-5 w-5 text-amber-500 shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-neutral-800 dark:text-white truncate">{folder.name}</p>
         <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">{folder.members.length} server{folder.members.length !== 1 ? 's' : ''}</p>
@@ -120,11 +119,11 @@ function DashboardInner() {
   const { showToast } = useToastContext()
   const [view, setView] = useState<ViewMode>('grid')
   const [servers, setServers] = useState<Server[]>([])
-  const [folders, setFolders] = useState<Folder[]>([])
+  const [folders, setFolders] = useState<FolderData[]>([])
   const [loading, setLoading] = useState(true)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
-  const [activeFolder, setActiveFolder] = useState<Folder | null>(null)
+  const [activeFolder, setActiveFolder] = useState<FolderData | null>(null)
   const [deleteFolderConfirm, setDeleteFolderConfirm] = useState(false)
   const dragUUID = useRef<string | null>(null)
   const dragName = useRef<string | null>(null)
@@ -146,6 +145,42 @@ function DashboardInner() {
   function handleDragStart(uuid: string, name: string) {
     dragUUID.current = uuid
     dragName.current = name
+  }
+
+  function handleDragStartWithGhost(uuid: string, name: string, e: React.DragEvent) {
+    dragUUID.current = uuid
+    dragName.current = name
+    e.dataTransfer.effectAllowed = 'move'
+
+    const isDark = document.documentElement.classList.contains('dark')
+    const ghost = document.createElement('div')
+    ghost.id = 'drag-ghost'
+    ghost.textContent = name
+    ghost.style.cssText = `
+      position:fixed;z-index:9999;pointer-events:none;
+      background:${isDark ? '#262626' : 'white'};
+      border:1px solid ${isDark ? 'rgba(255,255,255,0.1)' : '#e5e5e5'};
+      border-radius:12px;padding:10px 14px;font-size:13px;font-weight:500;
+      color:${isDark ? '#e5e5e5' : '#171717'};
+      box-shadow:0 8px 24px rgba(0,0,0,0.18);
+      transform:rotate(2deg);opacity:0.95;
+      max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    `
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(new Image(), 0, 0)
+
+    function move(ev: MouseEvent) {
+      ghost.style.left = ev.clientX + 12 + 'px'
+      ghost.style.top = ev.clientY + 12 + 'px'
+    }
+    document.addEventListener('mousemove', move)
+
+    const cleanup = () => {
+      ghost.remove()
+      document.removeEventListener('mousemove', move)
+      document.removeEventListener('dragend', cleanup)
+    }
+    document.addEventListener('dragend', cleanup)
   }
 
   async function handleDropOnFolder(folderId: number) {
@@ -213,10 +248,7 @@ function DashboardInner() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <svg className="animate-spin h-6 w-6 text-neutral-400" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <Loader2 className="animate-spin h-6 w-6 text-neutral-400" />
       </div>
     )
   }
@@ -232,13 +264,13 @@ function DashboardInner() {
         <div className="flex items-center gap-2 flex-wrap">
           {!user?.isAdmin && (
             <Link href="/create-server" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-4 w-4"><path fillRule="evenodd" d="M12 3.75a.75.75 0 0 1 .75.75v6.75h6.75a.75.75 0 0 1 0 1.5h-6.75v6.75a.75.75 0 0 1-1.5 0v-6.75H4.5a.75.75 0 0 1 0-1.5h6.75V4.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" /></svg>
+              <Plus className="h-4 w-4" />
               New server
             </Link>
           )}
           <button onClick={() => setNewFolderOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="h-4 w-4"><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m3-3H9m4.06-7.19-2.12-2.12a1.5 1.5 0 0 0-1.061-.44H4.5A2.25 2.25 0 0 0 2.25 6v12a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18V9a2.25 2.25 0 0 0-2.25-2.25h-5.379a1.5 1.5 0 0 1-1.06-.44Z" /></svg>
+            <FolderPlus className="h-4 w-4" />
             New folder
           </button>
           {servers.length > 0 && (
@@ -247,8 +279,8 @@ function DashboardInner() {
                 <button key={v} onClick={() => setView(v)}
                   className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-all ${view === v ? 'bg-white dark:bg-white/[0.08] text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 dark:text-neutral-400'}`}>
                   {v === 'grid'
-                    ? <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    : <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>}
+                    ? <LayoutGrid className="h-4 w-4" />
+                    : <List className="h-4 w-4" />}
                   {v.charAt(0).toUpperCase() + v.slice(1)}
                 </button>
               ))}
@@ -260,7 +292,7 @@ function DashboardInner() {
 
       {servers.length === 0 && folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center mt-32 text-center">
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="h-16 w-16 text-neutral-200 dark:text-neutral-700 mb-4"><path fillRule="evenodd" d="M11.622 1.602a.75.75 0 0 1 .756 0l2.25 1.313a.75.75 0 0 1-.756 1.295L12 3.118 10.128 4.21a.75.75 0 1 1-.756-1.295l2.25-1.313Z" clipRule="evenodd" /></svg>
+          <Server className="h-16 w-16 text-neutral-200 dark:text-neutral-700 mb-4" />
           <h2 className="text-base font-medium text-neutral-800 dark:text-white">No servers yet</h2>
           <p className="text-sm text-neutral-500 mt-1">
             {!user?.isAdmin
@@ -285,7 +317,7 @@ function DashboardInner() {
           <LayoutGroup>
           {view === 'grid' ? (
             <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-              {serversNotInFolder.map(s => <ServerCard key={s.UUID} server={s} onDragStart={handleDragStart} />)}
+              {serversNotInFolder.map(s => <ServerCard key={s.UUID} server={s} onDragStart={handleDragStartWithGhost} />)}
             </AnimatedList>
           ) : (
             <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-x-auto shadow-sm mb-6">
@@ -343,10 +375,10 @@ function DashboardInner() {
               <h2 className="text-sm font-semibold text-neutral-800 dark:text-white">{activeFolder.name}</h2>
               <div className="flex items-center gap-1">
                 <button onClick={() => setDeleteFolderConfirm(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-500/10 text-red-400 hover:text-red-500 transition">
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-3.5 h-3.5"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
                 <button onClick={() => setActiveFolder(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 transition">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+                  <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
@@ -361,7 +393,7 @@ function DashboardInner() {
                           <StatusBadge status={s.status} />
                         </Link>
                         <button onClick={() => removeFromFolder(s.UUID)} className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition" title="Remove">
-                          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" width="12" height="12"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ))}

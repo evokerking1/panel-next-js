@@ -30,7 +30,14 @@ function buildEnvVariables(variablesJson: string | null): Record<string, string>
   } catch { return {}; }
 }
 
-async function restartIfRunning(server: Awaited<ReturnType<typeof prisma.server.findUnique>> & { node: { address: string; port: number; key: string }; image: { stop?: string | null } | null }, newStartCommand?: string, newVariables?: string) {
+async function restartIfRunning(
+  server: Awaited<ReturnType<typeof prisma.server.findUnique>> & {
+    node: { address: string; port: number; key: string };
+    image: { stop?: string | null } | null;
+  },
+  newStartCommand?: string,
+  newVariables?: string,
+) {
   if (!server) return;
   const base = daemonUrl(server.node.address, server.node.port);
   const auth = { username: 'Airlink', password: server.node.key };
@@ -54,7 +61,7 @@ async function restartIfRunning(server: Awaited<ReturnType<typeof prisma.server.
       env,
       StartCommand: newStartCommand ?? server.StartCommand,
     }, { auth, timeout: 8000 });
-  } catch { /* best-effort */ }
+  } catch {}
 }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
@@ -86,9 +93,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
       return NextResponse.json({ error: 'Startup editing is not allowed for this server.' }, { status: 403 });
     }
     const { startCommand } = body;
-    await prisma.server.update({ where: { UUID: uuid }, data: { StartCommand: startCommand } });
-    await restartIfRunning(server as Parameters<typeof restartIfRunning>[0], startCommand);
-    return NextResponse.json({ success: true });
+    try {
+      await prisma.server.update({ where: { UUID: uuid }, data: { StartCommand: startCommand } });
+      await restartIfRunning(server as Parameters<typeof restartIfRunning>[0], startCommand);
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Daemon request failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   if (action === 'update-docker-image') {
@@ -100,9 +112,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   if (action === 'update-variables') {
     const { variables } = body;
     const varJson = JSON.stringify(variables);
-    await prisma.server.update({ where: { UUID: uuid }, data: { Variables: varJson } });
-    await restartIfRunning(server as Parameters<typeof restartIfRunning>[0], undefined, varJson);
-    return NextResponse.json({ success: true });
+    try {
+      await prisma.server.update({ where: { UUID: uuid }, data: { Variables: varJson } });
+      await restartIfRunning(server as Parameters<typeof restartIfRunning>[0], undefined, varJson);
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Daemon request failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
   }
 
   return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });

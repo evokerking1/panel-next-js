@@ -1,5 +1,7 @@
 'use client'
 
+import { Trash2 , Loader2} from 'lucide-react'
+
 import { useState, useEffect } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
@@ -122,7 +124,7 @@ export default function AdminApiKeysPage() {
               </div>
               {loading ? (
                 <div className="flex items-center justify-center h-24">
-                  <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+                  <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
                 </div>
               ) : (
                 <table className="min-w-full divide-y divide-neutral-200 dark:divide-neutral-800">
@@ -164,7 +166,7 @@ export default function AdminApiKeysPage() {
                         <td className="py-4 pl-3 pr-4 text-right sm:pr-0">
                           <button onClick={() => setDeleteTarget(k)}
                             className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 text-neutral-400 hover:text-red-500 transition">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4"><path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Z" clipRule="evenodd" /></svg>
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </td>
                       </tr>

@@ -83,7 +83,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
 
   try {
     await axios.delete(
-      `${daemonUrl(server.node.address, server.node.port)}/container/delete`,
+      `${daemonUrl(server.node.address, server.node.port)}/container`,
       { data: { id: server.UUID }, auth: { username: 'Airlink', password: server.node.key }, timeout: 10000 },
     );
   } catch {}

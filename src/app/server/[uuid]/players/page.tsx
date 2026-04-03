@@ -4,8 +4,10 @@ import { useState, useEffect, use, useCallback } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
+import InstallBanner from '@/components/server/InstallBanner'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
+import { Loader2, RefreshCw, WifiOff, Users, HelpCircle } from 'lucide-react'
 
 interface Player { name: string; uuid: string }
 
@@ -70,10 +72,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
   if (loading || !server) return (
     <PanelLayout>
       <div className="flex items-center justify-center h-64">
-        <svg className="animate-spin h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
+        <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
       </div>
     </PanelLayout>
   )
@@ -85,9 +84,10 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
           <ServerHeader name={server.name} description={server.description} status={status} />
         </div>
         <ServerTabs uuid={uuid} />
+        <InstallBanner uuid={uuid} installing={server.Installing} />
 
         <div className="mt-6">
-          <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-xl p-6 mb-6 shadow-lg">
+          <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-xl p-6 mb-6 shadow-lg hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div>
                 <h2 className="text-xl font-semibold text-neutral-800 dark:text-white mb-1">Players</h2>
@@ -104,9 +104,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
               </div>
             </div>
             <div className="text-xs text-neutral-500 flex items-center gap-1">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
+              <RefreshCw className="h-3 w-3" />
               Refreshing in <span className="font-medium mx-1">{countdown}</span> seconds ·
               <button onClick={fetchPlayers} className="ml-1 text-blue-400 hover:text-blue-300 transition-colors">
                 Refresh now
@@ -143,17 +141,13 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                 <>
                   <div className="flex justify-center mb-6">
                     <div className="w-16 h-16 rounded-full bg-neutral-200 dark:bg-neutral-700/50 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-neutral-400">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="m3 3 8.735 8.735m0 0a.374.374 0 1 1 .53.53m-.53-.53.53.53m0 0L21 21" />
-                      </svg>
+                      <WifiOff className="w-6 h-6 text-neutral-400" />
                     </div>
                   </div>
                   <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">Server Offline</h2>
                   <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">Start your server to see online players.</p>
                   <button onClick={fetchPlayers} className="mt-6 px-4 py-2 bg-neutral-800 dark:bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-all duration-200 inline-flex items-center gap-2 text-sm">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
+                    <RefreshCw className="h-4 w-4" />
                     Refresh
                   </button>
                 </>
@@ -161,9 +155,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                 <>
                   <div className="flex justify-center mb-6">
                     <div className="w-16 h-16 rounded-full bg-green-700/20 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-                      </svg>
+                      <Users className="h-8 w-8 text-green-400" />
                     </div>
                   </div>
                   <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">Server is online</h2>
@@ -179,9 +171,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                 <>
                   <div className="flex justify-center mb-6">
                     <div className="w-16 h-16 rounded-full bg-yellow-700/20 flex items-center justify-center">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8 text-yellow-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
+                      <HelpCircle className="h-8 w-8 text-yellow-400" />
                     </div>
                   </div>
                   <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">Status Unknown</h2>

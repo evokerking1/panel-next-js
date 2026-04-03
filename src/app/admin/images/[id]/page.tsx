@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import { Loader2 } from 'lucide-react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import PanelLayout from '@/components/layout/PanelLayout'
@@ -99,7 +100,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
     return (
       <PanelLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="w-5 h-5 border-2 border-neutral-200 border-t-neutral-500 rounded-full animate-spin" />
+          <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
         </div>
       </PanelLayout>
     )
