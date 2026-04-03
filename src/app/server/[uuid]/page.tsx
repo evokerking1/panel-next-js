@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef, use, useCallback } from 'react'
-import { Terminal } from '@xterm/xterm'
-import { FitAddon } from '@xterm/addon-fit'
-import '@xterm/xterm/css/xterm.css'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
@@ -74,7 +71,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   const wsRef = useRef<WebSocket | null>(null)
   const statusWsRef = useRef<WebSocket | null>(null)
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const termRef = useRef<Terminal | null>(null)
+  const termRef = useRef<import('@xterm/xterm').Terminal | null>(null)
   const termContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -92,52 +89,65 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   useEffect(() => {
     if (!termContainerRef.current) return
 
-    const term = new Terminal({
-      disableStdin: true,
-      lineHeight: 1.35,
-      fontFamily: 'Menlo, Monaco, Consolas, monospace',
-      fontSize: 12,
-      theme: {
-        foreground: '#c5c9d1',
-        background: '#141414',
-        selectionBackground: '#5DA5D580',
-        black: '#1E1E1D',
-        brightBlack: '#262625',
-        red: '#E54B4B',
-        green: '#9ECE58',
-        yellow: '#FAED70',
-        blue: '#396FE2',
-        magenta: '#BB80B3',
-        cyan: '#2DDAFD',
-        white: '#d0d0d0',
-        brightRed: '#FF5370',
-        brightGreen: '#C3E88D',
-        brightYellow: '#FFCB6B',
-        brightBlue: '#82AAFF',
-        brightMagenta: '#C792EA',
-        brightCyan: '#89DDFF',
-        brightWhite: '#ffffff',
-        cursor: '#c5c9d1',
-        cursorAccent: '#141414',
-      },
-      scrollback: 1000,
-      convertEol: true,
+    let term: import('@xterm/xterm').Terminal | null = null
+    let cleanup: (() => void) | null = null
+
+    Promise.all([
+      import('@xterm/xterm'),
+      import('@xterm/addon-fit'),
+      import('@xterm/xterm/css/xterm.css' as string),
+    ]).then(([{ Terminal }, { FitAddon }]) => {
+      if (!termContainerRef.current) return
+
+      term = new Terminal({
+        disableStdin: true,
+        lineHeight: 1.35,
+        fontFamily: 'Menlo, Monaco, Consolas, monospace',
+        fontSize: 12,
+        theme: {
+          foreground: '#c5c9d1',
+          background: '#141414',
+          selectionBackground: '#5DA5D580',
+          black: '#1E1E1D',
+          brightBlack: '#262625',
+          red: '#E54B4B',
+          green: '#9ECE58',
+          yellow: '#FAED70',
+          blue: '#396FE2',
+          magenta: '#BB80B3',
+          cyan: '#2DDAFD',
+          white: '#d0d0d0',
+          brightRed: '#FF5370',
+          brightGreen: '#C3E88D',
+          brightYellow: '#FFCB6B',
+          brightBlue: '#82AAFF',
+          brightMagenta: '#C792EA',
+          brightCyan: '#89DDFF',
+          brightWhite: '#ffffff',
+          cursor: '#c5c9d1',
+          cursorAccent: '#141414',
+        },
+        scrollback: 1000,
+        convertEol: true,
+      })
+
+      const fitAddon = new FitAddon()
+      term.loadAddon(fitAddon)
+      term.open(termContainerRef.current)
+      fitAddon.fit()
+      termRef.current = term
+
+      const onResize = () => fitAddon.fit()
+      window.addEventListener('resize', onResize)
+
+      cleanup = () => {
+        window.removeEventListener('resize', onResize)
+        term?.dispose()
+        termRef.current = null
+      }
     })
 
-    const fitAddon = new FitAddon()
-    term.loadAddon(fitAddon)
-    term.open(termContainerRef.current)
-    fitAddon.fit()
-    termRef.current = term
-
-    const onResize = () => fitAddon.fit()
-    window.addEventListener('resize', onResize)
-
-    return () => {
-      window.removeEventListener('resize', onResize)
-      term.dispose()
-      termRef.current = null
-    }
+    return () => { cleanup?.() }
   }, [])
 
   const pollStats = useCallback(() => {
@@ -230,12 +240,16 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     const ws = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/console`)
     wsRef.current = ws
     ws.onmessage = e => {
+      const raw = typeof e.data === 'string' ? e.data : ''
       try {
-        const data = JSON.parse(e.data)
-        if (data.line) termRef.current?.writeln(data.line)
-      } catch {
-        termRef.current?.writeln(e.data)
-      }
+        const data = JSON.parse(raw)
+        const line = data.line ?? data.output ?? data.data?.line
+        if (line) {
+          termRef.current?.writeln(line)
+          return
+        }
+      } catch {}
+      if (raw) termRef.current?.writeln(raw)
     }
     ws.onerror = () => {}
     return () => { ws.close() }

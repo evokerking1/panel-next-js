@@ -131,9 +131,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     envVars['SERVER_MEMORY'] = String(server.Memory);
     envVars['SERVER_CPU'] = String(server.Cpu);
 
+    const restartImage = (() => {
+      try { return String(Object.values(JSON.parse(server.dockerImage ?? '{}'))[0] ?? '') }
+      catch { return server.dockerImage ?? '' }
+    })();
+
     await axios.post(
       `${daemonUrl(server.node.address, server.node.port)}/container/start`,
-      { id: server.UUID, image: server.dockerImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
+      { id: server.UUID, image: restartImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
       { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
     );
     return NextResponse.json({ success: true });
@@ -148,9 +153,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     envVars['SERVER_MEMORY'] = String(server.Memory);
     envVars['SERVER_CPU'] = String(server.Cpu);
 
+    const startImage = (() => {
+      try { return String(Object.values(JSON.parse(server.dockerImage ?? '{}'))[0] ?? '') }
+      catch { return server.dockerImage ?? '' }
+    })();
+
     await axios.post(
       `${daemonUrl(server.node.address, server.node.port)}/container/start`,
-      { id: server.UUID, image: server.dockerImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
+      { id: server.UUID, image: startImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
       { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
     );
     return NextResponse.json({ success: true });
