@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
   const res = NextResponse.next();
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
   const url = new URL(req.url);
   const action = url.searchParams.get('action') || 'list';
 
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
 
   if (action === 'list') {
     const rawPath = url.searchParams.get('path') || '/';
@@ -129,7 +129,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
     return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
   }
 
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
 
   if (action === 'write') {
     const { content } = body;

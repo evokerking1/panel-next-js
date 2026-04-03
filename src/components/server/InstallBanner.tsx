@@ -8,10 +8,18 @@ interface InstallBannerProps {
   installing: boolean
 }
 
+async function readWsText(data: string | Blob | ArrayBuffer): Promise<string> {
+  if (typeof data === 'string') return data
+  if (data instanceof Blob) return data.text()
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
+  return ''
+}
+
 export default function InstallBanner({ uuid, installing }: InstallBannerProps) {
   const [lines, setLines] = useState<string[]>([])
   const [done, setDone] = useState(false)
   const [failed, setFailed] = useState(false)
+  const [stateText, setStateText] = useState('Waiting for daemon...')
   const wsRef = useRef<WebSocket | null>(null)
   const logEndRef = useRef<HTMLDivElement>(null)
 
@@ -22,32 +30,45 @@ export default function InstallBanner({ uuid, installing }: InstallBannerProps) 
     const ws = new WebSocket(`${proto}://${location.host}/api/server/${uuid}/events`)
     wsRef.current = ws
 
-    ws.onmessage = e => {
-      const raw = typeof e.data === 'string' ? e.data : ''
+    ws.onmessage = async e => {
+      const raw = await readWsText(e.data)
+      if (!raw) return
+
       try {
         const parsed = JSON.parse(raw)
         const line =
           parsed.line ??
+          parsed.args?.[0]?.line ??
           parsed.data?.line ??
           parsed.data?.message ??
           parsed.message
         if (line) {
+          setStateText(String(line))
           setLines(prev => [...prev, String(line)])
           return
         }
       } catch {}
-      if (raw) setLines(prev => [...prev, raw])
+      if (raw) {
+        setStateText(raw)
+        setLines(prev => [...prev, raw])
+      }
     }
 
     const poll = setInterval(() => {
       fetch(`/api/server/${uuid}/stats`)
         .then(r => r.json())
         .then(d => {
-          if (d.running) {
+          if (d.state === 'installed' || d.installed || d.running) {
             setDone(true)
+            setFailed(false)
             ws.close()
             clearInterval(poll)
             setTimeout(() => window.location.reload(), 1600)
+          } else if (d.state === 'failed' || d.failed) {
+            setFailed(true)
+            setDone(false)
+            ws.close()
+            clearInterval(poll)
           }
         })
         .catch(() => {})
@@ -84,10 +105,10 @@ export default function InstallBanner({ uuid, installing }: InstallBannerProps) 
             <p className="text-sm font-medium text-neutral-800 dark:text-neutral-100 shrink-0">
               {done ? 'Installation complete' : failed ? 'Installation failed' : 'Installing server'}
             </p>
-            {!done && !failed && lastLine && (
+            {!done && !failed && (
               <>
                 <span className="text-neutral-300 dark:text-neutral-600">·</span>
-                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{lastLine}</p>
+                <p className="text-xs text-neutral-500 dark:text-neutral-400 truncate">{lastLine || stateText}</p>
               </>
             )}
           </div>
@@ -104,4 +125,3 @@ export default function InstallBanner({ uuid, installing }: InstallBannerProps) 
     </div>
   )
 }
-

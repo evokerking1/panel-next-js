@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
-import { daemonGet, daemonPost, daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl, daemonGet, daemonInstallState, daemonPost } from '@/lib/daemon';
 import axios from 'axios';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
@@ -70,6 +70,26 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
     serverStatus = { online: false, starting: false, stopping: false, uptime: null };
   }
 
+  const installState = await daemonInstallState(
+    server.node.address,
+    server.node.port,
+    server.node.key,
+    server.UUID,
+  );
+
+  if (installState === 'installed' && (server.Installing || server.Queued)) {
+    await prisma.server.update({
+      where: { UUID: server.UUID },
+      data: { Installing: false, Queued: false },
+    });
+    server.Installing = false;
+    server.Queued = false;
+  }
+
+  if (installState && installState !== 'installed' && installState !== 'not_found') {
+    server.Installing = true;
+  }
+
   const features: string[] = (() => {
     try {
       const info = JSON.parse(server.image?.info || '{}');
@@ -77,7 +97,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
     } catch { return []; }
   })();
 
-  return NextResponse.json({ server, serverStatus, features });
+  return NextResponse.json({
+    server,
+    serverStatus,
+    installState,
+    installed: installState === 'installed' || (!server.Installing && !server.Queued),
+    failed: installState === 'failed',
+    features,
+  });
 }
 
 // POST /api/server/[uuid] — power actions
@@ -100,26 +127,22 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   }
 
   if (action === 'stop') {
-    try {
-      await axios.post(
-        `${daemonUrl(server.node.address, server.node.port)}/container/stop`,
-        { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
-        { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
-      );
-    } catch (err) {
-      if (axios.isAxiosError(err) && err.response?.status === 404) {
-        return NextResponse.json({ success: true, message: 'Already stopped.' });
-      }
-    }
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
+    void axios.post(
+      `${base}/container/stop`,
+      { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
+      { auth: { username: 'Airlink', password: server.node.key }, timeout: 5000 }
+    ).catch(() => {});
     return NextResponse.json({ success: true });
   }
 
   if (action === 'restart') {
     try {
+      const base = await buildDaemonUrl(server.node.address, server.node.port);
       await axios.post(
-        `${daemonUrl(server.node.address, server.node.port)}/container/stop`,
+        `${base}/container/stop`,
         { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
-        { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
+        { auth: { username: 'Airlink', password: server.node.key }, timeout: 5000 }
       );
     } catch {}
 
@@ -136,10 +159,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
       catch { return server.dockerImage ?? '' }
     })();
 
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
     await axios.post(
-      `${daemonUrl(server.node.address, server.node.port)}/container/start`,
+      `${base}/container/start`,
       { id: server.UUID, image: restartImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
-      { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
+      { auth: { username: 'Airlink', password: server.node.key }, timeout: 30000 }
     );
     return NextResponse.json({ success: true });
   }
@@ -158,10 +182,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
       catch { return server.dockerImage ?? '' }
     })();
 
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
     await axios.post(
-      `${daemonUrl(server.node.address, server.node.port)}/container/start`,
+      `${base}/container/start`,
       { id: server.UUID, image: startImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
-      { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 }
+      { auth: { username: 'Airlink', password: server.node.key }, timeout: 30000 }
     );
     return NextResponse.json({ success: true });
   }

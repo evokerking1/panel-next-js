@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 async function requireAdmin(req: NextRequest) {
   const res = NextResponse.next();
@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
         const node = nodes.find((n: { id: number }) => n.id === srv.nodeId)
         if (!node) return null
         try {
-          const base = daemonUrl(node.address, node.port)
+          const base = await buildDaemonUrl(node.address, node.port)
           const r = await axios.get(`${base}/server/${srv.UUID}/players`, {
             auth: { username: 'Airlink', password: node.key },
             timeout: 4000,
@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
     nodes.map(async (node: { id: number; name: string; address: string; port: number; key: string; ram: number; cpu: number; disk: number }) => {
       const serverCount = servers.filter((s: { nodeId: number }) => s.nodeId === node.id).length;
       try {
-        const base = daemonUrl(node.address, node.port);
+        const base = await buildDaemonUrl(node.address, node.port);
         const r = await axios.get(base, {
           auth: { username: 'Airlink', password: node.key },
           timeout: 3000,

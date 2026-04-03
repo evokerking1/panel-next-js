@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 export async function GET(req: NextRequest) {
   const res = NextResponse.next();
@@ -21,7 +21,8 @@ export async function GET(req: NextRequest) {
     servers.map(async (server: ServerRow) => {
       if (nodeCache[server.nodeId] === undefined) {
         try {
-          await axios.get(daemonUrl(server.node.address, server.node.port), {
+          const base = await buildDaemonUrl(server.node.address, server.node.port);
+          await axios.get(base, {
             auth: { username: 'Airlink', password: server.node.key },
             timeout: 2000,
           });
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
       }
 
       try {
-        const base = daemonUrl(server.node.address, server.node.port);
+        const base = await buildDaemonUrl(server.node.address, server.node.port);
         const auth = { username: 'Airlink', password: server.node.key };
 
         const statusRes = await axios.get(`${base}/container/status`, {

@@ -17,6 +17,7 @@ interface ServerInfo {
   description?: string
   Suspended: boolean
   Installing: boolean
+  Queued: boolean
   node: { name: string; address: string; port: number }
   image: { name: string }
 }
@@ -84,7 +85,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
           <ServerHeader name={server.name} description={server.description} status={status} />
         </div>
         <ServerTabs uuid={uuid} />
-        <InstallBanner uuid={uuid} installing={server.Installing} />
+        <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />
 
         <div className="mt-6">
           <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-xl p-6 mb-6 shadow-lg hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">

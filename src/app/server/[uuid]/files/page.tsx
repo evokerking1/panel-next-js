@@ -12,7 +12,7 @@ import { Folder, File, Loader2, Download, Plus, Upload, FolderPlus, Pencil } fro
 
 interface FileEntry { name: string; type: 'file' | 'directory'; size?: number; modified?: string }
 
-interface ServerInfo { UUID: string; name: string; Installing: boolean }
+interface ServerInfo { UUID: string; name: string; Installing: boolean; Queued: boolean }
 
 function FileIcon({ type }: { type: string }) {
   if (type === 'directory') return <Folder className="h-4 w-4 text-amber-500 shrink-0" />
@@ -200,7 +200,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       </div>
       </FadeUp>
       <ServerTabs uuid={uuid} />
-      {server && <InstallBanner uuid={uuid} installing={server.Installing} />}
+      {server && <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />}
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
         {editFile ? (

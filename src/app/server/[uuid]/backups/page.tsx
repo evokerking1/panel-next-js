@@ -19,6 +19,7 @@ interface ServerInfo {
   description?: string
   Suspended: boolean
   Installing: boolean
+  Queued: boolean
 }
 
 export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: string }> }) {
@@ -126,7 +127,7 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
       </FadeUp>
 
       <ServerTabs uuid={uuid} />
-      {server && <InstallBanner uuid={uuid} installing={server.Installing} />}
+      {server && <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />}
 
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">

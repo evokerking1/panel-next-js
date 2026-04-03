@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 async function requireAdmin(req: NextRequest) {
   const res = NextResponse.next();
@@ -62,8 +62,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
 
   if (suspensionChanged && newSuspended) {
     try {
+      const base = await buildDaemonUrl(server.node.address, server.node.port);
       await axios.post(
-        `${daemonUrl(server.node.address, server.node.port)}/container/stop`,
+        `${base}/container/stop`,
         { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
         { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 },
       );
@@ -82,12 +83,18 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!server) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 
   try {
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
     await axios.delete(
-      `${daemonUrl(server.node.address, server.node.port)}/container`,
+      `${base}/container`,
       { data: { id: server.UUID }, auth: { username: 'Airlink', password: server.node.key }, timeout: 10000 },
     );
   } catch {}
 
-  await prisma.server.delete({ where: { id: parseInt(id) } });
+  await prisma.$transaction([
+    prisma.backup.deleteMany({ where: { serverId: server.UUID } }),
+    prisma.sftpCredential.deleteMany({ where: { serverId: server.UUID } }),
+    prisma.serverFolderMember.deleteMany({ where: { serverUUID: server.UUID } }),
+    prisma.server.delete({ where: { id: parseInt(id) } }),
+  ]);
   return NextResponse.json({ success: true });
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
   const res = NextResponse.next();
@@ -20,8 +20,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   }
 
   try {
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
     const { data } = await axios.post(
-      `${daemonUrl(server.node.address, server.node.port)}/sftp/credentials`,
+      `${base}/sftp/credentials`,
       { id: uuid },
       { auth: { username: 'Airlink', password: server.node.key }, timeout: 8000 },
     );

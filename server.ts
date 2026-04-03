@@ -4,7 +4,7 @@ import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { getIronSession } from 'iron-session';
 import { IncomingMessage, ServerResponse } from 'http';
-import { installDaemonRequestInterceptor, daemonSchemeSync } from './src/lib/daemon';
+import { installDaemonRequestInterceptor, daemonScheme } from './src/lib/daemon';
 
 installDaemonRequestInterceptor();
 
@@ -23,10 +23,10 @@ const sessionOptions = {
 
 async function getSessionUser(req: IncomingMessage) {
   try {
-    const fakeRes = { setHeader: () => {}, getHeader: () => undefined } as unknown as ServerResponse;
+    const res = new ServerResponse(req);
     const session = await getIronSession<{ user?: { id: number; isAdmin: boolean } }>(
       req as Parameters<typeof getIronSession>[0],
-      fakeRes,
+      res,
       sessionOptions,
     );
     return session.user ?? null;
@@ -46,9 +46,9 @@ async function proxyConsole(
     daemonWs.send(JSON.stringify({ event: 'auth', args: [nodeKey] }));
   });
 
-  daemonWs.on('message', (data) => {
+  daemonWs.on('message', (data, isBinary) => {
     if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(data);
+      clientWs.send(isBinary ? data : data.toString());
     }
   });
 
@@ -62,8 +62,8 @@ async function proxyConsole(
     if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
   });
 
-  clientWs.on('message', (data) => {
-    if (daemonWs.readyState === WebSocket.OPEN) daemonWs.send(data);
+  clientWs.on('message', (data, isBinary) => {
+    if (daemonWs.readyState === WebSocket.OPEN) daemonWs.send(isBinary ? data : data.toString());
   });
 
   clientWs.on('close', () => {
@@ -82,9 +82,9 @@ async function proxyStatus(
     daemonWs.send(JSON.stringify({ event: 'auth', args: [nodeKey] }));
   });
 
-  daemonWs.on('message', (data) => {
+  daemonWs.on('message', (data, isBinary) => {
     if (clientWs.readyState === WebSocket.OPEN) {
-      clientWs.send(data);
+      clientWs.send(isBinary ? data : data.toString());
     }
   });
 
@@ -155,7 +155,7 @@ async function startServer() {
           return;
         }
 
-        const httpScheme = daemonSchemeSync();
+        const httpScheme = await daemonScheme();
         const wsScheme = httpScheme === 'https' ? 'wss' : 'ws';
 
         if (consoleMatch) {

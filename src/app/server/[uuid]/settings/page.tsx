@@ -22,6 +22,7 @@ interface ServerData {
   Ports: string
   Suspended: boolean
   Installing: boolean
+  Queued: boolean
   node: { name: string; address: string; port: number }
   image: { name: string }
   owner: { username?: string; email: string }
@@ -170,7 +171,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
       </FadeUp>
       <ServerTabs uuid={uuid} />
       <FadeUp delay={0.06}>
-      <InstallBanner uuid={uuid} installing={server?.Installing ?? false} />
+      <InstallBanner uuid={uuid} installing={(server?.Installing ?? false) || (server?.Queued ?? false)} />
       <div className="px-4 sm:px-8 mt-4 pb-8">
         <form onSubmit={saveSettings}>
           <Section title="General" desc="Basic server information.">

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = await params;
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
   const auth = { username: 'Airlink', password: server.node.key };
 
   try {

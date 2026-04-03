@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
   const res = NextResponse.next();
@@ -24,8 +24,9 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ u
   if (server.ownerId !== session.user.id) return NextResponse.json({ error: 'Not your server.' }, { status: 403 });
 
   try {
+    const base = await buildDaemonUrl(server.node.address, server.node.port);
     await axios.delete(
-      `${daemonUrl(server.node.address, server.node.port)}/container`,
+      `${base}/container`,
       {
         data: { id: server.UUID, deleteCmd: 'delete' },
         auth: { username: 'Airlink', password: server.node.key },
@@ -41,6 +42,11 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ u
     }
   }
 
-  await prisma.server.delete({ where: { UUID: server.UUID } });
+  await prisma.$transaction([
+    prisma.backup.deleteMany({ where: { serverId: server.UUID } }),
+    prisma.sftpCredential.deleteMany({ where: { serverId: server.UUID } }),
+    prisma.serverFolderMember.deleteMany({ where: { serverUUID: server.UUID } }),
+    prisma.server.delete({ where: { UUID: server.UUID } }),
+  ]);
   return NextResponse.json({ success: true });
 }

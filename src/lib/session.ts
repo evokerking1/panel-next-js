@@ -15,14 +15,20 @@ export interface SessionData {
   user?: SessionUser;
 }
 
+const sessionPassword = (() => {
+  if (typeof window !== 'undefined') return 'placeholder';
+
+  const secret = process.env.SESSION_SECRET;
+  const isProductionBuild = process.env.NEXT_PHASE === 'phase-production-build';
+  if (!secret && process.env.NODE_ENV === 'production' && !isProductionBuild) {
+    console.warn('[session] SESSION_SECRET is not set. Using insecure default — set this in production.');
+  }
+
+  return secret || 'change-this-secret-to-something-32-chars-long';
+})();
+
 const sessionOptions = {
-  password: (() => {
-    const secret = process.env.SESSION_SECRET;
-    if (!secret) {
-      console.warn('[session] SESSION_SECRET is not set. Using insecure default — set this in production.');
-    }
-    return secret || 'change-this-secret-to-something-32-chars-long';
-  })(),
+  password: sessionPassword,
   cookieName: 'airlink_session',
   cookieOptions: {
     secure: process.env.NODE_ENV === 'production',

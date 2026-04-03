@@ -29,16 +29,18 @@ export async function daemonScheme(): Promise<'http' | 'https'> {
 
 export function daemonSchemeSync(): 'http' | 'https' {
   if (Date.now() - schemeCachedAt > SCHEME_CACHE_TTL_MS) {
-    refreshSchemeCache();
+    void refreshSchemeCache();
   }
   return cachedScheme;
 }
 
-export function daemonUrl(address: string, port: number): string {
-  if (Date.now() - schemeCachedAt > SCHEME_CACHE_TTL_MS) {
-    refreshSchemeCache();
-  }
-  return `${cachedScheme}://${address}:${port}`;
+export function daemonUrlSync(address: string, port: number): string {
+  return `${daemonSchemeSync()}://${address}:${port}`;
+}
+
+export async function buildDaemonUrl(address: string, port: number): Promise<string> {
+  const scheme = await daemonScheme();
+  return `${scheme}://${address}:${port}`;
 }
 
 function hmacSign(key: string, method: string, path: string, body: string, timestamp: number): string {
@@ -89,7 +91,7 @@ export async function daemonGet<T = unknown>(
   path: string,
   params?: Record<string, string>
 ): Promise<T> {
-  const base = daemonUrl(address, port);
+  const base = await buildDaemonUrl(address, port);
   const resp = await axios.get<T>(`${base}${path}`, {
     auth: { username: 'Airlink', password: key },
     params,
@@ -105,7 +107,7 @@ export async function daemonPost<T = unknown>(
   path: string,
   data?: unknown
 ): Promise<T> {
-  const base = daemonUrl(address, port);
+  const base = await buildDaemonUrl(address, port);
   const resp = await axios.post<T>(`${base}${path}`, data, {
     auth: { username: 'Airlink', password: key },
     timeout: 8000,
@@ -115,7 +117,7 @@ export async function daemonPost<T = unknown>(
 
 export async function checkNodeOnline(address: string, port: number, key: string): Promise<boolean> {
   try {
-    const base = daemonUrl(address, port);
+    const base = await buildDaemonUrl(address, port);
     await axios.get(base, {
       auth: { username: 'Airlink', password: key },
       timeout: 3000,
@@ -123,6 +125,27 @@ export async function checkNodeOnline(address: string, port: number, key: string
     return true;
   } catch {
     return false;
+  }
+}
+
+export async function daemonInstallState(
+  address: string,
+  port: number,
+  key: string,
+  serverId: string,
+): Promise<string | null> {
+  try {
+    const base = await buildDaemonUrl(address, port);
+    const resp = await axios.get<{ state?: string }>(`${base}/container/status/${serverId}`, {
+      auth: { username: 'Airlink', password: key },
+      timeout: 4000,
+    });
+    return typeof resp.data?.state === 'string' ? resp.data.state : null;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return 'not_found';
+    }
+    return null;
   }
 }
 

@@ -20,6 +20,7 @@ interface ServerData {
   Ports: string
   Suspended: boolean
   Installing: boolean
+  Queued: boolean
   dockerImage?: string
   node: { name: string; address: string; port: number }
   image: { name: string; stop?: string }
@@ -29,6 +30,64 @@ interface StatsCardProps {
   title: string
   value: string
   index: number
+}
+
+async function readWsText(data: string | Blob | ArrayBuffer): Promise<string> {
+  if (typeof data === 'string') return data
+  if (data instanceof Blob) return data.text()
+  if (data instanceof ArrayBuffer) return new TextDecoder().decode(data)
+  return ''
+}
+
+function isDaemonInfraError(text: string): boolean {
+  return (
+    text.includes('Failed to attach to container') ||
+    text.includes('no such container') ||
+    text.includes('No such container') ||
+    text.includes('container not available') ||
+    text.includes('Attach failed') ||
+    text.includes('HTTP code 404') ||
+    text.includes('HTTP code 500')
+  )
+}
+
+const ANSI_RE = /\x1b(?:\[[0-9;]*[A-Za-z]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_]|[\u0080-\u009F])/g
+const PROMPT_RE = /(?:[a-zA-Z0-9_-]+)@[^\s:#\])\r\n]+(?:[^$#\r\n]*?)[$#]\s*/g
+
+function maskPrompts(raw: string): string {
+  const plain = raw.replace(ANSI_RE, '')
+  if (!PROMPT_RE.test(plain)) {
+    PROMPT_RE.lastIndex = 0
+    return raw
+  }
+  PROMPT_RE.lastIndex = 0
+
+  const stripped = plain.replace(/[\r\n]/g, '').trim()
+  const isOnlyPrompt = PROMPT_RE.test(stripped) && stripped.replace(PROMPT_RE, '').trim() === ''
+  PROMPT_RE.lastIndex = 0
+
+  if (isOnlyPrompt) return '\r\nairlinkd~ '
+  return plain.replace(PROMPT_RE, 'airlinkd~ ')
+}
+
+function extractConsoleText(raw: string): string {
+  try {
+    const data = JSON.parse(raw)
+    return (
+      data.line ??
+      data.output ??
+      data.args?.[0]?.line ??
+      data.args?.[0]?.message ??
+      (typeof data.args?.[0] === 'string' ? data.args[0] : null) ??
+      data.data?.line ??
+      data.data?.message ??
+      (typeof data.data === 'string' ? data.data : null) ??
+      data.message ??
+      ''
+    )
+  } catch {
+    return raw
+  }
 }
 
 function StatsCard({ title, value, index }: StatsCardProps) {
@@ -66,6 +125,9 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   const [command, setCommand] = useState('')
   const [actionLoading, setActionLoading] = useState(false)
   const [daemonOffline, setDaemonOffline] = useState(false)
+  const [consoleConnected, setConsoleConnected] = useState(false)
+  const [terminalReady, setTerminalReady] = useState(false)
+  const [inputPlaceholder, setInputPlaceholder] = useState('Waiting for container...')
   const daemonFailCount = useRef(0)
   const inputRef = useRef<HTMLInputElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
@@ -73,6 +135,21 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const termRef = useRef<import('@xterm/xterm').Terminal | null>(null)
   const termContainerRef = useRef<HTMLDivElement>(null)
+  const pendingConsoleLinesRef = useRef<string[]>([])
+  const commandHistoryRef = useRef<string[]>([])
+  const currentCommandIndexRef = useRef(-1)
+
+  const writeConsoleLine = useCallback((line: string) => {
+    const normalized = String(line ?? '')
+    if (!normalized) return
+
+    if (termRef.current) {
+      termRef.current.write(normalized)
+      return
+    }
+
+    pendingConsoleLinesRef.current.push(normalized)
+  }, [])
 
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
@@ -95,7 +172,6 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     Promise.all([
       import('@xterm/xterm'),
       import('@xterm/addon-fit'),
-      import('@xterm/xterm/css/xterm.css' as string),
     ]).then(([{ Terminal }, { FitAddon }]) => {
       if (!termContainerRef.current) return
 
@@ -136,14 +212,52 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       term.open(termContainerRef.current)
       fitAddon.fit()
       termRef.current = term
+      setTerminalReady(true)
+      for (const line of pendingConsoleLinesRef.current) {
+        term.write(line)
+      }
+      pendingConsoleLinesRef.current = []
 
       const onResize = () => fitAddon.fit()
       window.addEventListener('resize', onResize)
 
+      const termEl = termContainerRef.current
+      let touchStartY = 0
+
+      const handleWheel = (e: WheelEvent) => {
+        if (!term) return
+        e.preventDefault()
+        e.stopPropagation()
+        const lines = e.deltaMode === 1 ? e.deltaY : Math.round(e.deltaY / 20)
+        term.scrollLines(lines)
+      }
+
+      const handleTouchStart = (e: TouchEvent) => {
+        touchStartY = e.touches[0]?.clientY ?? 0
+      }
+
+      const handleTouchMove = (e: TouchEvent) => {
+        if (!term) return
+        const nextY = e.touches[0]?.clientY ?? touchStartY
+        const dy = touchStartY - nextY
+        touchStartY = nextY
+        e.preventDefault()
+        e.stopPropagation()
+        term.scrollLines(Math.round(dy / 16))
+      }
+
+      termEl?.addEventListener('wheel', handleWheel, { passive: false })
+      termEl?.addEventListener('touchstart', handleTouchStart, { passive: true })
+      termEl?.addEventListener('touchmove', handleTouchMove, { passive: false })
+
       cleanup = () => {
         window.removeEventListener('resize', onResize)
+        termEl?.removeEventListener('wheel', handleWheel)
+        termEl?.removeEventListener('touchstart', handleTouchStart)
+        termEl?.removeEventListener('touchmove', handleTouchMove)
         term?.dispose()
         termRef.current = null
+        setTerminalReady(false)
       }
     })
 
@@ -157,8 +271,13 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
         daemonFailCount.current = 0
         setDaemonOffline(false)
         setStatus(d.running ? 'running' : 'stopped')
-        if (d.running && d.stats?.uptime != null) {
-          setUptime(formatUptime(d.stats.uptime))
+        if (d.running) {
+          setInputPlaceholder(consoleConnected ? 'Type a command and press Enter...' : 'Waiting for console...')
+        } else {
+          setInputPlaceholder('Server is offline')
+        }
+        if (d.running && d.uptime != null) {
+          setUptime(formatUptime(d.uptime))
         } else {
           setUptime('')
         }
@@ -179,8 +298,10 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
 
     const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
     const statusWs = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/status`)
+    statusWs.binaryType = 'arraybuffer'
     statusWsRef.current = statusWs
     let statusWsConnected = false
+    let isCleaningUp = false
 
     statusWs.onopen = () => {
       statusWsConnected = true
@@ -190,10 +311,31 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       }
     }
 
-    statusWs.onmessage = e => {
+    statusWs.onmessage = async e => {
+      const raw = await readWsText(e.data)
+      if (!raw) return
+
       try {
-        const data = JSON.parse(e.data)
-        if (data.event === 'state') {
+        const data = JSON.parse(raw)
+        if (data.data) {
+          const stats = data.data
+          if (stats.running === false) {
+            setStatus('stopped')
+            setUptime('')
+            return
+          }
+          if (stats.running === true) {
+            setStatus('running')
+          }
+          if (stats.memory || stats.cpu) {
+            setRamPct(stats.memory?.percentage ?? '0')
+            setCpuPct(stats.cpu?.percentage ?? '0')
+            const bytes = stats.memory?.usage ?? 0
+            const mb = bytes / (1024 * 1024)
+            setRamUsed(mb >= 1024 ? `${(mb / 1024).toFixed(1)}GB` : `${mb.toFixed(0)}MB`)
+            if (stats.uptime != null) setUptime(formatUptime(stats.uptime))
+          }
+        } else if (data.event === 'state') {
           const running = data.args?.[0] === 'running'
           setStatus(running ? 'running' : 'stopped')
           if (!running) setUptime('')
@@ -212,48 +354,146 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     }
 
     statusWs.onerror = () => {
-      if (!statusWsConnected) {
+      if (!statusWsConnected && !pollingRef.current) {
         pollStats()
         pollingRef.current = setInterval(pollStats, 5000)
       }
     }
 
     statusWs.onclose = () => {
-      if (statusWsConnected && !pollingRef.current) {
+      if (!isCleaningUp && !pollingRef.current) {
         pollStats()
         pollingRef.current = setInterval(pollStats, 5000)
       }
     }
 
     pollStats()
-    pollingRef.current = setInterval(pollStats, 5000)
 
     return () => {
+      isCleaningUp = true
       statusWs.close()
-      if (pollingRef.current) clearInterval(pollingRef.current)
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current)
+        pollingRef.current = null
+      }
     }
   }, [uuid, server, pollStats])
 
   useEffect(() => {
     if (!server) return
     const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/console`)
-    wsRef.current = ws
-    ws.onmessage = e => {
-      const raw = typeof e.data === 'string' ? e.data : ''
-      try {
-        const data = JSON.parse(raw)
-        const line = data.line ?? data.output ?? data.data?.line
-        if (line) {
-          termRef.current?.writeln(line)
+    let reconnectAttempts = 0
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+    let closedByCleanup = false
+
+    const scheduleReconnect = () => {
+      if (closedByCleanup || reconnectTimer) return
+      reconnectAttempts += 1
+      const backoff = Math.min(30000, 2000 * Math.pow(1.5, reconnectAttempts - 1))
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null
+        connect()
+      }, backoff)
+    }
+
+    const connect = () => {
+      if (closedByCleanup) return
+      const ws = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/console`)
+      ws.binaryType = 'arraybuffer'
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        reconnectAttempts = 0
+        setConsoleConnected(true)
+        setDaemonOffline(false)
+        setInputPlaceholder(status === 'running' ? 'Type a command and press Enter...' : 'Waiting for container...')
+      }
+
+      ws.onmessage = async e => {
+        const raw = await readWsText(e.data)
+        if (!raw || isDaemonInfraError(raw)) return
+        if (raw.includes('airlinkd server appears to be down')) {
+          setDaemonOffline(true)
+          ws.close()
           return
         }
-      } catch {}
-      if (raw) termRef.current?.writeln(raw)
+        if (raw.includes('Working on')) {
+          termRef.current?.clear()
+          ws.close()
+          return
+        }
+        const text = extractConsoleText(raw)
+        if (!text) return
+        writeConsoleLine(text === raw ? maskPrompts(text) : `${maskPrompts(text)}\r\n`)
+      }
+
+      ws.onerror = () => {
+        setConsoleConnected(false)
+        setInputPlaceholder('Waiting for console...')
+      }
+
+      ws.onclose = () => {
+        setConsoleConnected(false)
+        setInputPlaceholder('Waiting for console...')
+        if (wsRef.current === ws) {
+          wsRef.current = null
+        }
+        scheduleReconnect()
+      }
     }
-    ws.onerror = () => {}
-    return () => { ws.close() }
-  }, [uuid, server])
+
+    connect()
+
+    return () => {
+      closedByCleanup = true
+      setConsoleConnected(false)
+      setInputPlaceholder('Waiting for container...')
+      if (reconnectTimer) clearTimeout(reconnectTimer)
+      try { wsRef.current?.close() } catch {}
+      wsRef.current = null
+    }
+  }, [uuid, server, status, writeConsoleLine])
+
+  useEffect(() => {
+    if (!server) return
+
+    const wsProto = location.protocol === 'https:' ? 'wss:' : 'ws:'
+    const lifecycleWs = new WebSocket(`${wsProto}//${location.host}/api/server/${uuid}/events`)
+    lifecycleWs.binaryType = 'arraybuffer'
+
+    lifecycleWs.onmessage = async e => {
+      const raw = await readWsText(e.data)
+      if (!raw) return
+
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed.event !== 'lifecycle') return
+        const eventType = String(parsed.data?.type ?? '')
+        const message = String(parsed.data?.message ?? '')
+        if (message) {
+          writeConsoleLine(`\x1b[34m[daemon] \x1b[37m${message}\x1b[0m\r\n`)
+        }
+
+        if (eventType === 'pulling' || eventType === 'creating' || eventType === 'starting') {
+          setInputPlaceholder('Waiting...')
+        }
+        if (eventType === 'started') {
+          setInputPlaceholder(consoleConnected ? 'Type a command and press Enter...' : 'Waiting for console...')
+        }
+        if (eventType === 'stopped' || eventType === 'killed') {
+          setInputPlaceholder('Server is offline')
+        }
+        if (eventType === 'error') {
+          showToast(message || 'Daemon error.', 'error')
+          setInputPlaceholder(consoleConnected ? 'Type a command and press Enter...' : 'Waiting for console...')
+        }
+      } catch {}
+    }
+
+    return () => {
+      lifecycleWs.close()
+    }
+  }, [uuid, server, consoleConnected, showToast, writeConsoleLine])
 
   async function powerAction(action: 'start' | 'stop' | 'restart') {
     setActionLoading(true)
@@ -277,10 +517,23 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
 
   async function sendCommand() {
     const cmd = command.trim()
-    if (!cmd || status !== 'running') return
-    termRef.current?.writeln(`> ${cmd}`)
+    if (!cmd || status !== 'running' || !consoleConnected) return
+    termRef.current?.write(`\u001b[1m\u001b[33m~ \u001b[0m${cmd}\r\n`)
+    const history = commandHistoryRef.current
+    if (!history.length || history[history.length - 1] !== cmd) {
+      if (history.length === 10) history.shift()
+      history.push(cmd)
+    }
+    currentCommandIndexRef.current = history.length
     setCommand('')
     inputRef.current?.focus()
+    try {
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({ event: 'CMD', command: cmd }))
+        return
+      }
+    } catch {}
+
     try {
       await fetch(`/api/server/${uuid}`, {
         method: 'POST',
@@ -384,7 +637,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       </FadeUp>
 
       <ServerTabs uuid={uuid} />
-      <InstallBanner uuid={uuid} installing={server.Installing} />
+      <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />
 
       <FadeUp delay={0.08}>
       <div className="flex flex-col lg:flex-row px-4 sm:px-8 mt-4 gap-5 pb-8">
@@ -394,16 +647,56 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
               <span className="text-[11px] font-medium text-neutral-600 select-none tracking-wide">console</span>
             </div>
             <div className="bg-[#141414] flex-1 relative">
-              <div ref={termContainerRef} style={{ height: 420 }} />
+              <div id="terminal" ref={termContainerRef} />
             </div>
           </div>
           <div className="relative">
-            <input ref={inputRef} type="text" value={command}
-              onChange={e => setCommand(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') sendCommand() }}
-              disabled={status !== 'running'}
-              placeholder={status === 'running' ? 'Type a command and press Enter...' : 'Server is offline'}
-              className="w-full px-4 py-3 bg-transparent rounded-b-xl text-sm border-t border-neutral-600/20 focus:ring-1 focus:ring-neutral-500/50 dark:focus:ring-neutral-100/20 focus:border-transparent placeholder:text-neutral-600 dark:placeholder:text-neutral-500 text-neutral-800 dark:text-white outline-none disabled:opacity-50 transition" />
+            <div className="relative">
+              <input ref={inputRef} type="text" value={command}
+                onChange={e => setCommand(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    sendCommand()
+                    return
+                  }
+                  if (e.key === 'ArrowUp') {
+                    const nextIndex = currentCommandIndexRef.current > 0 ? currentCommandIndexRef.current - 1 : 0
+                    const nextValue = commandHistoryRef.current[nextIndex]
+                    if (nextValue !== undefined) {
+                      currentCommandIndexRef.current = nextIndex
+                      setCommand(nextValue)
+                      e.preventDefault()
+                    }
+                    return
+                  }
+                  if (e.key === 'ArrowDown') {
+                    const history = commandHistoryRef.current
+                    const nextIndex = currentCommandIndexRef.current < history.length - 1
+                      ? currentCommandIndexRef.current + 1
+                      : history.length
+                    currentCommandIndexRef.current = nextIndex
+                    setCommand(nextIndex < history.length ? history[nextIndex] : '')
+                    e.preventDefault()
+                  }
+                }}
+                disabled={status !== 'running' || !consoleConnected}
+                placeholder={inputPlaceholder}
+                className="w-full px-4 py-3 bg-transparent text-neutral-800 dark:text-white rounded-b-xl text-sm border-t border-neutral-600/20 focus:ring-1 focus:ring-neutral-500/50 dark:focus:ring-neutral-100/20 focus:border-transparent placeholder:font-medium placeholder:text-neutral-600 dark:placeholder:text-neutral-500 outline-none relative z-[1] disabled:opacity-60"
+              />
+              <div
+                id="ghost-text-bg"
+                className="absolute inset-0 px-4 py-3 text-sm pointer-events-none rounded-b-xl overflow-hidden bg-neutral-200 dark:bg-neutral-600/20 border-t border-neutral-600/20"
+                style={{ zIndex: 0 }}
+              >
+                <span id="ghost-typed" className="invisible">{command}</span>
+                <span id="ghost-suggestion" className="text-neutral-400 dark:text-neutral-500" />
+              </div>
+            </div>
+            {!terminalReady && (
+              <div className="px-4 py-2 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-700/50 rounded-b-xl">
+                Initializing console...
+              </div>
+            )}
           </div>
         </div>
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const res = NextResponse.next();
@@ -14,7 +14,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!node) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   try {
-    const { data } = await axios.get(`${daemonUrl(node.address, node.port)}/stats`, {
+    const base = await buildDaemonUrl(node.address, node.port);
+    const { data } = await axios.get(`${base}/stats`, {
       auth: { username: 'Airlink', password: node.key },
       timeout: 4000,
     });

@@ -3,3 +3,4 @@ node_modules
 storage
 public/uploads
 prisma/dev.db
+.codex

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 function pickAvailablePort(allocated: number[], used: number[]): number | null {
   for (const port of allocated) {
@@ -160,6 +160,8 @@ export async function POST(req: NextRequest) {
       Variables: JSON.stringify(imageVariables),
       StartCommand: image.startup,
       dockerImage: JSON.stringify(imageDocker),
+      Installing: true,
+      Queued: true,
     },
   });
 
@@ -178,12 +180,18 @@ async function installServer(server: any, node: any, image: any, imageVariables:
   serverEnv.push({ env: 'SERVER_CPU',    value: String(server.Cpu) });
 
   const env = serverEnv.reduce((acc: any, curr: any) => { acc[curr.env] = curr.value; return acc; }, {});
-  const base = daemonUrl(node.address, node.port);
+  const base = await buildDaemonUrl(node.address, node.port);
   const auth = { username: 'Airlink', password: node.key };
 
-  if (!image.scripts) return;
+  if (!image.scripts) {
+    await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } });
+    return;
+  }
   let scripts: any = {};
-  try { scripts = JSON.parse(image.scripts); } catch { return; }
+  try { scripts = JSON.parse(image.scripts); } catch {
+    await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } });
+    return;
+  }
 
   try {
     if (scripts.installation && typeof scripts.installation === 'object') {
@@ -213,6 +221,7 @@ async function installServer(server: any, node: any, image: any, imageVariables:
         { auth, timeout: 600000 }
       );
     }
-    await prisma.server.update({ where: { id: server.id }, data: { Queued: false } });
   } catch {}
+
+  await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } });
 }

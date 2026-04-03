@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl, daemonInstallState } from '@/lib/daemon';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = await params;
@@ -19,8 +19,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
   const authOpts = { username: 'Airlink', password: server.node.key };
+  const installState = await daemonInstallState(server.node.address, server.node.port, server.node.key, server.UUID);
+
+  if (installState === 'installed' && (server.Installing || server.Queued)) {
+    await prisma.server.update({
+      where: { UUID: server.UUID },
+      data: { Installing: false, Queued: false },
+    });
+    server.Installing = false;
+    server.Queued = false;
+  }
 
   try {
     const [statusRes, statsRes] = await Promise.all([
@@ -42,9 +52,19 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
     return NextResponse.json({
       running,
       uptime: statusRes.data?.uptime ?? null,
+      state: installState,
+      installed: installState === 'installed' || (!server.Installing && !server.Queued),
+      failed: installState === 'failed',
       stats: { ramPct, cpuPct, ramUsed },
     });
   } catch {
-    return NextResponse.json({ running: false, uptime: null, stats: { ramPct: '0', cpuPct: '0', ramUsed: '0MB' } });
+    return NextResponse.json({
+      running: false,
+      uptime: null,
+      state: installState,
+      installed: installState === 'installed' || (!server.Installing && !server.Queued),
+      failed: installState === 'failed',
+      stats: { ramPct: '0', cpuPct: '0', ramUsed: '0MB' },
+    });
   }
 }

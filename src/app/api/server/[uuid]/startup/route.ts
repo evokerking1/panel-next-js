@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 import axios from 'axios';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
@@ -39,7 +39,7 @@ async function restartIfRunning(
   newVariables?: string,
 ) {
   if (!server) return;
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
   const auth = { username: 'Airlink', password: server.node.key };
   try {
     const { data } = await axios.get(`${base}/container/status`, { params: { id: server.UUID }, auth, timeout: 4000 });
@@ -60,7 +60,7 @@ async function restartIfRunning(
       Cpu: server.Cpu,
       env,
       StartCommand: newStartCommand ?? server.StartCommand,
-    }, { auth, timeout: 8000 });
+    }, { auth, timeout: 30000 });
   } catch {}
 }
 

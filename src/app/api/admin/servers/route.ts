@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
 import { getSessionFromRequest } from '@/lib/session'
-import { daemonUrl, daemonScheme } from '@/lib/daemon'
+import { buildDaemonUrl } from '@/lib/daemon'
 import axios from 'axios'
 import { Buffer } from 'buffer'
 
@@ -145,7 +145,7 @@ async function runInstall(
     envVars.push({ env: 'SERVER_MEMORY', value: String(server.Memory) })
     envVars.push({ env: 'SERVER_CPU', value: String(server.Cpu) })
   } catch {
-    await prisma.server.update({ where: { id: server.id }, data: { Queued: false } })
+    await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } })
     return
   }
 
@@ -154,8 +154,7 @@ async function runInstall(
     return acc
   }, {})
 
-  const scheme = await daemonScheme()
-  const base = `${scheme}://${server.node.address}:${server.node.port}`
+  const base = await buildDaemonUrl(server.node.address, server.node.port)
   const authHeader = `Basic ${Buffer.from(`Airlink:${server.node.key}`).toString('base64')}`
   const headers = { 'Content-Type': 'application/json', Authorization: authHeader }
 
@@ -163,7 +162,7 @@ async function runInstall(
   try {
     scripts = JSON.parse(server.image?.scripts || '{}')
   } catch {
-    await prisma.server.update({ where: { id: server.id }, data: { Queued: false } })
+    await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } })
     return
   }
 
@@ -218,5 +217,5 @@ async function runInstall(
     // If no scripts at all, just mark as done
   } catch {}
 
-  await prisma.server.update({ where: { id: server.id }, data: { Queued: false } })
+  await prisma.server.update({ where: { id: server.id }, data: { Installing: false, Queued: false } })
 }

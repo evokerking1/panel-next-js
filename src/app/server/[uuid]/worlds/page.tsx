@@ -19,6 +19,7 @@ interface ServerInfo {
   description?: string
   Suspended: boolean
   Installing: boolean
+  Queued: boolean
 }
 
 function worldIcon(name: string): string {
@@ -101,7 +102,7 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
           <ServerHeader name={server.name} description={server.description} status={status} />
         </div>
         <ServerTabs uuid={uuid} features={['players', 'worlds']} />
-        <InstallBanner uuid={uuid} installing={server.Installing} />
+        <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />
 
         <div className="mt-6">
           {worlds.length === 0 ? (

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -6,20 +7,23 @@ export const metadata: Metadata = {
   description: 'Game server management panel',
 }
 
-// Reads the 'theme' cookie before first paint — no flash.
-// Falls back to dark when no cookie exists (dark is the default).
-// window.toggleTheme() writes the cookie and flips the class live.
+// Mirrors the original Express panel: read theme from localStorage first,
+// fall back to system preference, and keep a cookie in sync for any code
+// that still expects it.
 const themeScript = `
 (function(){
-  function getCookie(name){
-    var m=document.cookie.match('(?:^|;)\\\\s*'+name+'=([^;]*)');
-    return m?decodeURIComponent(m[1]):null;
+  function persistTheme(theme){
+    try{localStorage.setItem('theme', theme);}catch(e){}
+    document.cookie='theme='+theme+';path=/;max-age='+60*60*24*365+';samesite=strict';
   }
-  var stored=getCookie('theme');
-  if(!stored){
-    stored='dark';
-    document.cookie='theme=dark;path=/;max-age='+60*60*24*365+';samesite=strict';
+
+  var stored=null;
+  try{stored=localStorage.getItem('theme');}catch(e){}
+  if(stored!=='dark' && stored!=='light'){
+    stored=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';
   }
+  persistTheme(stored);
+
   if(stored==='dark'){
     document.documentElement.classList.add('dark');
   } else {
@@ -29,7 +33,7 @@ const themeScript = `
   window.toggleTheme=function(){
     var isDark=document.documentElement.classList.contains('dark');
     var next=isDark?'light':'dark';
-    document.cookie='theme='+next+';path=/;max-age='+60*60*24*365+';samesite=strict';
+    persistTheme(next);
     if(next==='dark'){
       document.documentElement.classList.add('dark');
     } else {
@@ -184,9 +188,13 @@ const flipScript = `
 })();
 `
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const cookieStore = await cookies()
+  const initialTheme = cookieStore.get('theme')?.value
+  const htmlClassName = initialTheme === 'dark' ? 'h-full dark' : 'h-full'
+
   return (
-    <html lang="en" className="h-full" suppressHydrationWarning>
+    <html lang="en" className={htmlClassName} suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

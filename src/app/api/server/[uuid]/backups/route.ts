@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import axios from 'axios';
-import { daemonUrl } from '@/lib/daemon';
+import { buildDaemonUrl } from '@/lib/daemon';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
   const res = NextResponse.next();
@@ -41,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   const body = await req.json().catch(() => ({}));
   const { action, backupId } = body;
 
-  const base = daemonUrl(server.node.address, server.node.port);
+  const base = await buildDaemonUrl(server.node.address, server.node.port);
   const auth = { username: 'Airlink', password: server.node.key };
 
   if (action === 'create') {
