@@ -75,7 +75,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
     }
 
     const res = await fetch(`/api/admin/images/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })

@@ -79,7 +79,7 @@ export default function AdminServerEditPage({ params }: { params: Promise<{ id: 
   async function handleSave() {
     setSaving(true)
     const res = await fetch(`/api/admin/servers/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...form,

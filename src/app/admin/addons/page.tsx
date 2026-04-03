@@ -40,7 +40,7 @@ export default function AdminAddonsPage() {
 
   async function toggleEnabled(addon: Addon) {
     const res = await fetch(`/api/admin/addons/${addon.id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ enabled: !addon.enabled }),
     })

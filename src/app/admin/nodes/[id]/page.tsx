@@ -15,8 +15,8 @@ const inputClass = "rounded-xl focus:ring focus:ring-neutral-800/10 focus:border
 interface NodeData {
   id: number; name: string; ram: number; disk: number; cpu: number
   address: string; port: number; key: string
-  allocatedPorts?: number[]
-  instances?: { UUID: string; Ports?: string }[]
+  allocatedPorts?: string | number[]
+  servers?: { UUID: string; Ports?: string }[]
 }
 
 export default function AdminNodeEditPage({ params }: { params: Promise<{ id: string }> }) {
@@ -65,9 +65,12 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
           address: n.address || '',
           port: String(n.port || ''),
         })
-        setAllocatedPorts(n.allocatedPorts || [])
+        const ports = typeof n.allocatedPorts === 'string'
+          ? JSON.parse(n.allocatedPorts || '[]')
+          : (n.allocatedPorts || [])
+        setAllocatedPorts(ports)
         const used = new Set<number>()
-        n.instances?.forEach(srv => {
+        n.servers?.forEach(srv => {
           if (!srv.Ports) return
           try {
             JSON.parse(srv.Ports).forEach((p: { Port: string }) => {
@@ -112,7 +115,7 @@ export default function AdminNodeEditPage({ params }: { params: Promise<{ id: st
   async function handleSave() {
     setSaving(true)
     const res = await fetch(`/api/admin/nodes/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, allocatedPorts: JSON.stringify(allocatedPorts) }),
     })

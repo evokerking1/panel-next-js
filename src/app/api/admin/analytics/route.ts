@@ -12,8 +12,61 @@ async function requireAdmin(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const user = await requireAdmin(req);
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const user = await requireAdmin(req)
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const type = new URL(req.url).searchParams.get('type')
+
+  if (type === 'playerstats') {
+    const servers = await prisma.server.findMany({
+      select: { UUID: true, name: true, nodeId: true, Ports: true },
+    })
+    const nodes = await prisma.node.findMany()
+    const history = await prisma.playerStats.findMany({
+      orderBy: { timestamp: 'desc' },
+      take: 576,
+      select: { timestamp: true, totalPlayers: true },
+    })
+
+    const serverResults = await Promise.all(
+      servers.map(async (srv: { UUID: string; name: string; nodeId: number; Ports: string }) => {
+        const node = nodes.find((n: { id: number }) => n.id === srv.nodeId)
+        if (!node) return null
+        try {
+          const base = daemonUrl(node.address, node.port)
+          const r = await axios.get(`${base}/server/${srv.UUID}/players`, {
+            auth: { username: 'Airlink', password: node.key },
+            timeout: 4000,
+          })
+          const players: string[] = r.data?.players ?? []
+          const maxPlayers: number = r.data?.maxPlayers ?? 0
+          const version: string | undefined = r.data?.version
+          const motd: string | undefined = r.data?.motd
+          return { uuid: srv.UUID, name: srv.name, onlinePlayers: players.length, maxPlayers, players, version, motd }
+        } catch {
+          return null
+        }
+      })
+    )
+
+    const online = serverResults.filter(Boolean) as {
+      uuid: string; name: string; onlinePlayers: number; maxPlayers: number
+      players: string[]; version?: string; motd?: string
+    }[]
+
+    const totalPlayers = online.reduce((s, sv) => s + sv.onlinePlayers, 0)
+    const maxCapacity = online.reduce((s, sv) => s + sv.maxPlayers, 0)
+    const utilization = maxCapacity > 0 ? Math.round((totalPlayers / maxCapacity) * 100) : 0
+
+    return NextResponse.json({
+      totalPlayers,
+      maxCapacity,
+      onlineServers: online.length,
+      utilization,
+      servers: online,
+      history: history.reverse().map((h: { timestamp: Date; totalPlayers: number }) => ({ timestamp: h.timestamp.toISOString(), count: h.totalPlayers })),
+    })
+  }
 
   const [servers, users, nodes, images, loginHistory] = await Promise.all([
     prisma.server.findMany({ include: { image: { select: { id: true, name: true } }, owner: { select: { username: true } } } }),

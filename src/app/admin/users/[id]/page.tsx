@@ -70,7 +70,7 @@ export default function AdminUserEditPage({ params }: { params: Promise<{ id: st
     if (form.serverLimit !== '') body.serverLimit = parseInt(form.serverLimit)
 
     const res = await fetch(`/api/admin/users/${id}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
