@@ -123,7 +123,6 @@ export default function Topbar() {
     <>
       <DesktopThemeToggle />
 
-      {/* ── MOBILE TOP BAR ── */}
       <div className="mobile-top-bar lg:hidden fixed top-0 left-0 right-0 z-50 h-14 bg-white/8 dark:bg-[#141414]/8 backdrop-blur-xl border-b border-neutral-200/30 dark:border-white/5">
 
         <div id="topbar-default" className={`${mobileSearchOpen ? 'hidden' : 'flex'} items-center justify-between h-14 px-4`}>
@@ -161,7 +160,6 @@ export default function Topbar() {
             <input ref={mobileInputRef} type="search" autoComplete="off" placeholder="Search navigation..."
               value={query}
               onChange={e => { setQuery(e.target.value); setShowResults(true) }}
-              onBlur={() => setTimeout(() => closeMobileSearch(), 0)}
               className="flex-1 bg-transparent text-sm text-neutral-800 dark:text-white placeholder-neutral-400 focus:outline-none" />
           </div>
         </div>
@@ -190,7 +188,6 @@ export default function Topbar() {
         )}
       </div>
 
-      {/* ── DESKTOP TOP BAR ── */}
       <div className="hidden lg:flex fixed top-0 left-56 right-0 z-40 h-16 shrink-0 items-center gap-x-4 bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-b border-neutral-200/50 dark:border-white/5 px-4">
         <div className="flex flex-1 gap-x-4 self-stretch">
           <div className="relative flex flex-1 flex-col">

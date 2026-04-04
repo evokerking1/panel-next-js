@@ -8,18 +8,53 @@ function stripQuotes(value: string) {
   return value.trim().replace(/^["']|["']$/g, '');
 }
 
+function stripInlineComment(value: string) {
+  let quote: '"' | "'" | null = null;
+  let escaped = false;
+
+  for (let i = 0; i < value.length; i += 1) {
+    const char = value[i];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      if (quote === char) {
+        quote = null;
+      } else if (quote === null) {
+        quote = char;
+      }
+      continue;
+    }
+
+    if (char === '#' && quote === null) {
+      return value.slice(0, i).trim();
+    }
+  }
+
+  return value.trim();
+}
+
 function parseEnv(content: string) {
   const values: Record<string, string> = {};
 
-  for (const line of content.split('\n')) {
-    const trimmed = line.trim();
+  for (const rawLine of content.split(/\r?\n/)) {
+    const trimmed = rawLine.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
 
-    const eqIndex = trimmed.indexOf('=');
+    const normalized = trimmed.startsWith('export ') ? trimmed.slice(7).trim() : trimmed;
+    const eqIndex = normalized.indexOf('=');
     if (eqIndex === -1) continue;
 
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = stripQuotes(trimmed.slice(eqIndex + 1));
+    const key = normalized.slice(0, eqIndex).trim();
+    const value = stripQuotes(stripInlineComment(normalized.slice(eqIndex + 1)));
     if (key) values[key] = value;
   }
 
@@ -40,6 +75,8 @@ function formatEnv(secret: string) {
     'COOKIE_SECURE="false"',
     '',
     '# Server',
+    'URL="http://localhost:3000"',
+    'NAME="Airlink"',
     'PORT=3000',
     'HOST="0.0.0.0"',
     'NODE_ENV="development"',
@@ -69,6 +106,17 @@ export function ensureEnvLoaded() {
 
     fs.writeFileSync(envPath, fileContent, 'utf8');
     envValues = parseEnv(fileContent);
+  }
+
+  if (!envValues.URL) {
+    const host = envValues.HOST || process.env.HOST || 'localhost';
+    const port = envValues.PORT || process.env.PORT || '3000';
+    const normalizedHost = host === '0.0.0.0' ? 'localhost' : host;
+    envValues.URL = `http://${normalizedHost}:${port}`;
+  }
+
+  if (!envValues.NAME) {
+    envValues.NAME = 'Airlink';
   }
 
   for (const [key, value] of Object.entries(envValues)) {

@@ -19,16 +19,11 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
 
   return (
     <ToastContext.Provider value={{ showToast }}>
-      {/* Sidebar renders desktop sidebar + mobile bottom nav in one component */}
       <Sidebar />
-      {/* Topbar renders desktop topbar + mobile top bar in one component */}
       <Topbar />
 
-      {/* desktop: shift right of sidebar (w-56) and below topbar (h-16)
-          mobile: body css in globals.css gives padding-top: 3.5rem (top bar h-14)
-                  and padding-bottom: 4rem (bottom nav h-16) — no extra class needed */}
-      <div className="lg:pl-56">
-        <div id="page-content" className="lg:pt-16 min-h-screen">
+      <div className="panel-shell">
+        <div id="page-content" className="panel-content">
           {children}
         </div>
       </div>
@@ -37,5 +32,3 @@ export default function PanelLayout({ children }: { children: React.ReactNode })
     </ToastContext.Provider>
   )
 }
-
-// ~ https://github.com/thavanish edited this shitty code

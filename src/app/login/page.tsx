@@ -78,7 +78,7 @@ function LoginForm() {
   const allowReg = settings?.allowRegistration ?? false
 
   return (
-    <div className="flex min-h-screen">
+    <div className="auth-shell flex min-h-screen flex-col md:flex-row">
       <div
         style={{
           width: '100%',
@@ -88,13 +88,11 @@ function LoginForm() {
           flexDirection: 'column',
           justifyContent: 'center',
           padding: '48px 40px',
-          background: 'rgba(255,255,255,0.08)',
-          backdropFilter: 'blur(24px) saturate(180%)',
-          borderRight: '1px solid rgba(0,0,0,0.08)',
           opacity: visible ? 1 : 0,
           transform: visible ? 'translateX(0)' : 'translateX(-12px)',
           transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)',
         }}
+        className="relative z-10 flex min-h-screen w-full justify-center border-r border-neutral-200 bg-white md:max-w-[420px] dark:border-white/[0.08] dark:bg-[#141414] md:backdrop-blur-none max-md:bg-white/90 max-md:backdrop-blur-xl max-md:dark:bg-[#141414]/90"
       >
         <div className="mb-8">
           <img src={logo} alt="" className="h-10 w-10 rounded-xl object-contain mb-5" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
@@ -159,8 +157,10 @@ function LoginForm() {
         )}
       </div>
 
-      <div className="hidden md:block flex-1 bg-neutral-100 dark:bg-neutral-900"
-        style={wallpaper ? { background: `url('${wallpaper}') center/cover no-repeat` } : {}} />
+      <div
+        className="fixed inset-0 md:static md:flex-1 bg-neutral-100 dark:bg-neutral-900"
+        style={wallpaper ? { background: `url('${wallpaper}') center/cover no-repeat` } : {}}
+      />
     </div>
   )
 }

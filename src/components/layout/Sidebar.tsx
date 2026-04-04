@@ -65,9 +65,8 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* ── DESKTOP SIDEBAR ── */}
       <div id="pc-sidebar" className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-56 lg:flex-col left-0">
-        <div className="flex flex-col h-full bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-r border-neutral-200/30 dark:border-white/5">
+        <div className="flex flex-col h-full bg-white/8 dark:bg-[#141414]/8 backdrop-blur-xl border-r border-neutral-200/30 dark:border-white/5">
 
           <div className="pl-6 pt-4 pb-4 flex items-center min-w-0 shrink-0 pr-4">
             <Link href="/dashboard" className="flex items-center min-w-0">
@@ -87,7 +86,7 @@ export default function Sidebar() {
           </div>
 
           <Link href="/account"
-            className="flex items-center space-x-3 py-3 px-4 border-y border-neutral-800/10 dark:border-white/5 shrink-0 hover:bg-neutral-100 dark:hover:bg-white/[0.05] transition-colors group active:scale-95 transition-transform duration-100"
+            className="flex items-center space-x-3 py-4 px-4 border-y border-neutral-800/10 dark:border-white/5 shrink-0 hover:bg-neutral-100 dark:hover:bg-white/[0.05] transition-colors group active:scale-95 transition-transform duration-100"
             style={isActive('/account') ? { background: 'rgba(0,0,0,0.06)' } : {}}>
             <img className="h-8 w-8 rounded-xl border border-neutral-700/10 shrink-0 object-cover" src={avatarSrc} alt="Avatar" />
             <div className="min-w-0">
@@ -148,8 +147,7 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* ── MOBILE BOTTOM NAV ── */}
-      <nav className="mobile-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-t border-neutral-200/30 dark:border-white/5">
+      <nav className="mobile-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-[60] bg-white/8 dark:bg-[#141414]/8 backdrop-blur-xl border-t border-neutral-200/30 dark:border-white/5 pb-[env(safe-area-inset-bottom)]">
         <ul className="flex items-center justify-around h-16">
 
           <li className="flex-1">

@@ -1,5 +1,8 @@
 import path from 'node:path'
 import { PrismaClient } from '@prisma/client'
+import { ensureEnvLoaded } from './env'
+
+ensureEnvLoaded()
 
 function resolveDbUrl() {
   const raw = process.env.DATABASE_URL ?? 'file:./prisma/dev.db'

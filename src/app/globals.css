@@ -5,6 +5,13 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --mobile-topbar-height: 3.5rem;
+  --mobile-bottomnav-height: 4rem;
+  --desktop-topbar-height: 4rem;
+  --desktop-sidebar-width: 14rem;
+}
+
 /* ── Scrollbar ─────────────────────────────────────────────────── */
 html, body, * {
   scrollbar-width: none;
@@ -19,17 +26,33 @@ html, body {
   transition: background-color 0.22s ease, color 0.22s ease;
 }
 
-/* ── Mobile body padding — top bar + bottom nav ────────────────── */
 body {
-  padding-top: 3.5rem;
-  padding-bottom: 4rem;
   min-height: 100dvh;
   box-sizing: border-box;
 }
 
+.panel-shell {
+  min-height: 100dvh;
+}
+
+.panel-content {
+  min-height: 100dvh;
+  padding-top: var(--mobile-topbar-height);
+  padding-bottom: calc(var(--mobile-bottomnav-height) + env(safe-area-inset-bottom));
+}
+
+.auth-shell {
+  min-height: 100dvh;
+}
+
 @media (min-width: 1024px) {
-  body {
-    padding-top: 0;
+  .panel-shell {
+    padding-left: var(--desktop-sidebar-width);
+  }
+
+  .panel-content {
+    min-height: 100vh;
+    padding-top: var(--desktop-topbar-height);
     padding-bottom: 0;
   }
 }

@@ -9,7 +9,7 @@ import { useAuth } from '@/hooks/useAuth'
 type Tab = 'appearance' | 'servers' | 'security'
 
 const inputClass = "rounded-xl border border-neutral-200 dark:border-neutral-600/30 focus:border-neutral-400 dark:focus:border-white/70 focus:ring-1 focus:outline-none text-sm w-full bg-neutral-100 dark:bg-neutral-700/20 px-4 py-2 text-neutral-800 dark:text-white transition-colors"
-const numClass = "w-40 rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:focus:ring-neutral-600 transition"
+const numClass = "w-full sm:w-40 rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800 px-3 py-2 text-sm text-neutral-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-neutral-300 dark:focus:ring-neutral-600 transition"
 
 interface Settings {
   title?: string
@@ -49,7 +49,7 @@ function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean
 
 function Row({ label, desc, children }: { label: string; desc?: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
       <div>
         <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{label}</p>
         {desc && <p className="text-xs text-neutral-500 mt-0.5">{desc}</p>}
@@ -158,16 +158,16 @@ export default function AdminSettingsPage() {
   return (
     <PanelLayout>
       <div className="flex-1 overflow-y-auto pb-12">
-        <div className="px-8 pt-5">
+        <div className="px-4 pt-5 sm:px-8">
           <h1 className="text-base font-medium text-neutral-800 dark:text-white">Settings</h1>
           <p className="mt-0.5 text-sm text-neutral-500">Manage your panel configuration.</p>
         </div>
 
-        <div className="px-8 mt-5">
-          <div className="flex gap-0.5 mb-6 border-b border-neutral-200 dark:border-neutral-700/40">
+        <div className="mt-5 px-4 sm:px-8">
+          <div className="mb-6 flex gap-0.5 overflow-x-auto border-b border-neutral-200 dark:border-neutral-700/40">
             {tabs.map(t => (
               <button key={t.key} type="button" onClick={() => setTab(t.key)}
-                className={`px-4 py-2.5 text-sm font-medium transition -mb-px border-b-2 ${
+                className={`-mb-px shrink-0 border-b-2 px-4 py-2.5 text-sm font-medium transition ${
                   tab === t.key
                     ? 'text-neutral-900 dark:text-white border-neutral-900 dark:border-white'
                     : 'text-neutral-500 dark:text-neutral-400 border-transparent hover:text-neutral-700 dark:hover:text-neutral-300'
@@ -263,7 +263,7 @@ export default function AdminSettingsPage() {
                   </Card>
 
                   <Card title="Default Limits">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="block text-xs font-medium text-neutral-500 mb-1.5">Max servers per user</label>
                         <input type="number" min="0" className={numClass} value={settings.defaultServerLimit ?? 0}
@@ -318,7 +318,7 @@ export default function AdminSettingsPage() {
                   </Card>
 
                   <Card title="Login Protection">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <div>
                         <label className="block text-xs font-medium text-neutral-500 mb-1.5">Max login attempts</label>
                         <input type="number" min="1" max="100" className={numClass}

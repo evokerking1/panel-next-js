@@ -11,7 +11,10 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const node = await prisma.node.findUnique({ where: { id: parseInt(id) } });
   if (!node) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const panelUrl = process.env.URL || 'http://localhost:3000';
+  const forwardedProto = req.headers.get('x-forwarded-proto');
+  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+  const requestUrl = host ? `${forwardedProto || 'http'}://${host}` : null;
+  const panelUrl = process.env.URL || requestUrl || 'http://localhost:3000';
   const command = `npm run configure -- -- --panel "${panelUrl}" --key "${node.key}"`;
   return NextResponse.json({ command });
 }
