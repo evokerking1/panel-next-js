@@ -214,9 +214,12 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
             </div>
           </section>
 
+          </div>
+          </div>
+
           <section className="panel-card">
             <div className="panel-card-header">
-            <div className="flex items-center justify-between gap-3">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-sm font-medium text-neutral-800 dark:text-white">SFTP Access</h2>
                 <p className="text-xs text-neutral-500">Get temporary credentials to connect via SFTP.</p>
@@ -232,13 +235,13 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
             </div>
             </div>
             <div className="panel-card-body">
-            {sftpCredentials && (
-              <div className="panel-info-grid">
+            {sftpCredentials ? (
+              <div className="panel-info-grid lg:grid-cols-4">
                 <Field label="Host" value={sftpCredentials.host} />
                 <Field label="Username" value={sftpCredentials.username} />
-                <div>
+                <div className="lg:col-span-2">
                   <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">Password</p>
-                  <div className="mt-0.5 flex items-center gap-2">
+                  <div className="mt-0.5 flex flex-wrap items-center gap-2">
                     <p className="text-sm text-neutral-700 dark:text-neutral-300">
                       {showSftpPassword ? sftpCredentials.password : '••••••••••••'}
                     </p>
@@ -253,11 +256,11 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
                   </div>
                 </div>
               </div>
+            ) : (
+              <p className="text-sm text-neutral-500">Fetch credentials to reveal the SFTP host, username, and password.</p>
             )}
             </div>
           </section>
-          </div>
-          </div>
 
           <section className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800/20 dark:bg-red-950/20">
             <h2 className="mb-3 text-sm font-medium text-red-700 dark:text-red-400">Danger Zone</h2>

@@ -197,7 +197,6 @@ export default function AccountPage() {
           </div>
         </FadeUp>
 
-        {/* Profile picture */}
         <FadeUp delay={0.04}>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.9fr)]">
           <Section title="Profile & account">
@@ -241,6 +240,8 @@ export default function AccountPage() {
                   <p className="text-[10px] text-neutral-400">JPG, PNG, GIF or WebP, max 2 MB</p>
                 </div>
               </div>
+
+              <div className="h-px bg-neutral-200 dark:bg-white/5" />
 
               <form onSubmit={save} className="space-y-4">
                 <div className="panel-form-grid">
