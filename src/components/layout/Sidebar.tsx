@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -50,7 +50,7 @@ export default function Sidebar() {
     return () => window.removeEventListener('theme-changed', onThemeChange)
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const bg = bgRef.current
     const nav = navRef.current
     if (!bg || !nav) return

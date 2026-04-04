@@ -117,6 +117,41 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = await params;
+  const contentType = req.headers.get('content-type') || '';
+  if (contentType.includes('multipart/form-data')) {
+    const result2 = await getServerAndUser(req, uuid);
+    if ('error' in result2) return NextResponse.json({ error: result2.error }, { status: result2.status });
+    const { server: srv } = result2;
+    const formData = await req.formData();
+    const file = formData.get('file') as File | null;
+    const uploadPathRaw = (formData.get('uploadPath') as string) || '/';
+    if (!file) return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+    let uploadFilePath: string;
+    try { uploadFilePath = safePath(uploadPathRaw + file.name); } catch {
+      return NextResponse.json({ error: 'Invalid path.' }, { status: 400 });
+    }
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const FormData = (await import('form-data')).default;
+    const axFd = new FormData();
+    axFd.append('file', buffer, { filename: file.name, contentType: file.type || 'application/octet-stream' });
+    axFd.append('id', uuid);
+    axFd.append('path', uploadFilePath);
+    const base2 = await buildDaemonUrl(srv.node.address, srv.node.port);
+    try {
+      await axios.post(`${base2}/fs/upload`, axFd, {
+        headers: axFd.getHeaders(),
+        auth: auth(srv.node.key),
+        timeout: 60000,
+        maxContentLength: Infinity,
+        maxBodyLength: Infinity,
+      });
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Upload failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
+  }
+
   const result = await getServerAndUser(req, uuid);
   if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
 
@@ -162,6 +197,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   if (action === 'rename') {
     try {
       await axios.post(`${base}/fs/rename`, { id: uuid, path, newName }, {
+        auth: auth(server.node.key),
+        timeout: 8000,
+      });
+      return NextResponse.json({ success: true });
+    } catch (err) {
+      const msg = axios.isAxiosError(err) ? err.response?.data?.error || err.message : 'Daemon request failed';
+      return NextResponse.json({ error: msg }, { status: 502 });
+    }
+  }
+
+  if (action === 'mkdir') {
+    try {
+      await axios.post(`${base}/fs/mkdir`, { id: uuid, path }, {
         auth: auth(server.node.key),
         timeout: 8000,
       });

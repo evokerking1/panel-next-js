@@ -212,6 +212,19 @@ function Inner({ uuid }: { uuid: string }) {
 export default function ServerStartupPage({ params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = use(params)
   useAuth({ require: true })
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
+
+  useEffect(() => {
+    fetch(`/api/server/${uuid}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
+      })
+      .catch(() => {})
+  }, [uuid])
+
   return (
     <PanelLayout>
       <FadeUp>
@@ -219,8 +232,11 @@ export default function ServerStartupPage({ params }: { params: Promise<{ uuid: 
         <p className="text-base font-medium text-neutral-800 dark:text-white">Startup</p>
       </div>
       </FadeUp>
-      <ServerTabs uuid={uuid} />
-      <FadeUp delay={0.06}><InstallBanner uuid={uuid} installing={false} /><div className="mt-4"><Inner uuid={uuid} /></div></FadeUp>
+      <ServerTabs uuid={uuid} features={features} />
+      <InstallBanner uuid={uuid} installing={installing} />
+      <FadeUp delay={0.06}>
+        <div className="mt-4"><Inner uuid={uuid} /></div>
+      </FadeUp>
     </PanelLayout>
   )
 }

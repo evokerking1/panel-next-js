@@ -27,6 +27,8 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
   useAuth({ require: true })
 
   const [server, setServer] = useState<ServerInfo | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
   const [status, setStatus] = useState<'running' | 'stopped' | 'unknown'>('unknown')
   const [players, setPlayers] = useState<Player[]>([])
   const [serverInfo, setServerInfo] = useState<{ onlinePlayers: number; maxPlayers: number; version: string } | null>(null)
@@ -54,6 +56,8 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
           setServer(d.server)
           setStatus(d.serverStatus?.online ? 'running' : 'stopped')
         }
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -80,14 +84,15 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-        <div className="mb-4">
+      <FadeUp>
+        <div className="px-4 sm:px-8 pt-4">
           <ServerHeader name={server.name} description={server.description} status={status} />
         </div>
-        <ServerTabs uuid={uuid} />
-        <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />
-
-        <div className="mt-6">
+      </FadeUp>
+      <ServerTabs uuid={uuid} features={features} />
+      <InstallBanner uuid={uuid} installing={installing} />
+      <FadeUp delay={0.06}>
+        <div className="px-4 sm:px-8 mt-4 pb-8">
           <div className="bg-neutral-100 dark:bg-neutral-800/50 rounded-xl p-6 mb-6 shadow-lg hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4">
               <div>
@@ -182,7 +187,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
             </div>
           )}
         </div>
-      </div>
+      </FadeUp>
     </PanelLayout>
   )
 }

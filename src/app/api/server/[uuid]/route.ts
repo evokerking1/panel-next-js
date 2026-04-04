@@ -117,6 +117,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   const body = await req.json().catch(() => ({}));
   const { action, command } = body;
 
+  if (action === 'update-settings') {
+    const { name: newName, description: newDesc } = body;
+    if (!newName?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
+    await prisma.server.update({
+      where: { UUID: uuid },
+      data: {
+        name: String(newName).trim().slice(0, 64),
+        description: newDesc ? String(newDesc).trim().slice(0, 128) || null : null,
+      },
+    });
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'command') {
     if (!command) return NextResponse.json({ error: 'Command is required.' }, { status: 400 });
     await daemonPost(server.node.address, server.node.port, server.node.key, '/container/command', {

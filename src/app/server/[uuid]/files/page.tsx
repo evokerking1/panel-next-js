@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, use } from 'react'
+import type { ChangeEvent } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import InstallBanner from '@/components/server/InstallBanner'
@@ -56,6 +57,8 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
   useAuth({ require: true })
   const { showToast } = useToastContext()
   const [server, setServer] = useState<ServerInfo | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
   const [path, setPath] = useState('/')
   const [files, setFiles] = useState<FileEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -73,7 +76,11 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
       .then(r => r.json())
-      .then(d => { if (d.server) setServer(d.server) })
+      .then(d => {
+        if (d.server) setServer(d.server)
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
+      })
       .catch(() => {})
   }, [uuid])
 
@@ -180,9 +187,22 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
     setRenameName('')
   }
 
-  function handleUpload() {
-    showToast('Upload not yet available.', 'error')
+  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
+    const fileList = e.target.files
+    if (!fileList || fileList.length === 0) return
+    for (const file of Array.from(fileList)) {
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('uploadPath', path.endsWith('/') ? path : path + '/')
+      const res = await fetch(`/api/server/${uuid}/files`, {
+        method: 'POST',
+        body: fd,
+      })
+      if (res.ok) showToast(`${file.name} uploaded.`, 'success')
+      else showToast(`Failed to upload ${file.name}.`, 'error')
+    }
     if (uploadRef.current) uploadRef.current.value = ''
+    loadFiles(path)
   }
 
   function downloadFile(name: string) {
@@ -199,8 +219,8 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
         <p className="text-base font-medium text-neutral-800 dark:text-white">Files</p>
       </div>
       </FadeUp>
-      <ServerTabs uuid={uuid} />
-      {server && <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />}
+      <ServerTabs uuid={uuid} features={features} />
+      <InstallBanner uuid={uuid} installing={installing} />
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
         {editFile ? (

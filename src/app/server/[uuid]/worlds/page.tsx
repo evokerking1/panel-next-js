@@ -35,6 +35,8 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
   const { showToast } = useToastContext()
 
   const [server, setServer] = useState<ServerInfo | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
   const [status, setStatus] = useState<'running' | 'stopped' | 'unknown'>('unknown')
   const [worlds, setWorlds] = useState<World[]>([])
   const [loading, setLoading] = useState(true)
@@ -49,6 +51,8 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
           setServer(d.server)
           setStatus(d.serverStatus?.online ? 'running' : 'stopped')
         }
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
       })
       .catch(() => {})
   }, [uuid])
@@ -66,16 +70,15 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
   async function handleDelete() {
     if (!deleteTarget) return
     setDeleting(true)
-    showToast(`Deleting world ${deleteTarget}…`, 'info')
     try {
-      const res = await fetch(`/api/server/${uuid}/files?action=delete`, {
-        method: 'DELETE',
+      const res = await fetch(`/api/server/${uuid}/files`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ path: deleteTarget }),
+        body: JSON.stringify({ action: 'delete', path: `/${deleteTarget}` }),
       })
       if (res.ok) {
         setWorlds(prev => prev.filter(w => w.name !== deleteTarget))
-        showToast(`World ${deleteTarget} deleted.`, 'success')
+        showToast(`World "${deleteTarget}" deleted.`, 'success')
       } else {
         const d = await res.json()
         showToast(d.error || 'Failed to delete world.', 'error')
@@ -97,14 +100,15 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-        <div className="mb-4">
+      <FadeUp>
+        <div className="px-4 sm:px-8 pt-4">
           <ServerHeader name={server.name} description={server.description} status={status} />
         </div>
-        <ServerTabs uuid={uuid} features={['players', 'worlds']} />
-        <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />
-
-        <div className="mt-6">
+      </FadeUp>
+      <ServerTabs uuid={uuid} features={features} />
+      <InstallBanner uuid={uuid} installing={installing} />
+      <FadeUp delay={0.06}>
+        <div className="px-4 sm:px-8 mt-4 pb-8">
           {worlds.length === 0 ? (
             <div className="bg-neutral-100 dark:bg-neutral-500/20 border border-neutral-200 dark:border-transparent p-4 rounded-xl flex items-start space-x-4">
               <Info className="w-6 h-6 mt-1 text-blue-400 shrink-0" />
@@ -153,7 +157,7 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
             </div>
           )}
         </div>
-      </div>
+      </FadeUp>
 
       <Modal
         open={!!deleteTarget}

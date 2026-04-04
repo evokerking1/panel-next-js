@@ -27,6 +27,8 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
   useAuth({ require: true })
   const { showToast } = useToastContext()
   const [server, setServer] = useState<ServerInfo | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
   const [status, setStatus] = useState<'running' | 'stopped' | 'unknown'>('unknown')
   const [backups, setBackups] = useState<Backup[]>([])
   const [loading, setLoading] = useState(true)
@@ -42,6 +44,8 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
           setServer(d.server)
           setStatus(d.serverStatus?.online ? 'running' : 'stopped')
         }
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
       })
       .catch(() => {})
   }, [uuid])
@@ -126,8 +130,8 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
       </div>
       </FadeUp>
 
-      <ServerTabs uuid={uuid} />
-      {server && <InstallBanner uuid={uuid} installing={server.Installing || server.Queued} />}
+      <ServerTabs uuid={uuid} features={features} />
+      <InstallBanner uuid={uuid} installing={installing} />
 
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">

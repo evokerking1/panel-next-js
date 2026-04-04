@@ -187,6 +187,12 @@ html, body {
   background: #141414;
 }
 
+@media (max-width: 639px) {
+  #terminal {
+    height: 300px;
+  }
+}
+
 .page-enter > * {
   animation: fadeUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }

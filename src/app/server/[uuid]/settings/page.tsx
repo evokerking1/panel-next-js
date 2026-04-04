@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, use } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import InstallBanner from '@/components/server/InstallBanner'
@@ -8,7 +9,6 @@ import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
-import { useRouter } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 
 interface ServerData {
@@ -34,7 +34,7 @@ interface SftpCredentials {
   host: string
 }
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: React.ReactNode }) {
+function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
   return (
     <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5 mb-5 hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">
       <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">{title}</h2>
@@ -57,9 +57,10 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
   const { uuid } = use(params)
   const { user } = useAuth({ require: true })
   const { showToast } = useToastContext()
-  const router = useRouter()
 
   const [server, setServer] = useState<ServerData | null>(null)
+  const [features, setFeatures] = useState<string[]>([])
+  const [installing, setInstalling] = useState(false)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
@@ -77,30 +78,22 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
           setName(d.server.name)
           setDescription(d.server.description || '')
         }
+        if (d.features) setFeatures(d.features)
+        setInstalling(!d.installed && !d.failed)
       })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [uuid])
 
-  async function saveSettings(e: React.FormEvent) {
+  async function saveSettings(e: FormEvent) {
     e.preventDefault()
     if (!server) return
     setSaving(true)
     try {
-      const res = await fetch(`/api/admin/servers/${server.id}`, {
-        method: 'PUT',
+      const res = await fetch(`/api/server/${uuid}`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          description,
-          nodeId: server.node,
-          imageId: server.image,
-          Memory: server.Memory,
-          Cpu: server.Cpu,
-          Storage: server.Storage,
-          ownerId: server.owner,
-          Suspended: server.Suspended,
-        }),
+        body: JSON.stringify({ action: 'update-settings', name, description }),
       })
       if (res.ok) {
         setServer(s => s ? { ...s, name, description } : s)
@@ -120,7 +113,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
     const res = await fetch(`/api/admin/servers/${server.id}`, { method: 'DELETE' })
     if (res.ok) {
       showToast('Server deleted.', 'success')
-      router.push('/dashboard')
+      window.location.href = '/dashboard'
     } else {
       showToast('Failed to delete server.', 'error')
     }
@@ -169,9 +162,9 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
         <p className="text-base font-medium text-neutral-800 dark:text-white">Settings</p>
       </div>
       </FadeUp>
-      <ServerTabs uuid={uuid} />
+      <ServerTabs uuid={uuid} features={features} />
       <FadeUp delay={0.06}>
-      <InstallBanner uuid={uuid} installing={(server?.Installing ?? false) || (server?.Queued ?? false)} />
+      <InstallBanner uuid={uuid} installing={installing} />
       <div className="px-4 sm:px-8 mt-4 pb-8">
         <form onSubmit={saveSettings}>
           <Section title="General" desc="Basic server information.">

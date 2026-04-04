@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Terminal, Folder, Rocket, Archive, Settings, Users, Globe } from 'lucide-react'
@@ -19,15 +20,16 @@ interface TabsProps {
 const tabs: Tab[] = [
   { label: 'Console',  path: '',         feature: null,      icon: <Terminal className="size-5 mb-0.5 inline-flex mr-1" /> },
   { label: 'Files',    path: '/files',   feature: null,      icon: <Folder className="size-5 mb-0.5 inline-flex mr-1" /> },
-  { label: 'Startup',  path: '/startup', feature: null,      icon: <Rocket className="size-5 mb-0.5 inline-flex mr-1" /> },
-  { label: 'Backups',  path: '/backups', feature: null,      icon: <Archive className="size-5 mb-0.5 inline-flex mr-1" /> },
-  { label: 'Settings', path: '/settings',feature: null,      icon: <Settings className="size-5 mb-0.5 inline-flex mr-1" /> },
   { label: 'Players',  path: '/players', feature: 'players', icon: <Users className="size-5 mb-0.5 inline-flex mr-1" /> },
   { label: 'Worlds',   path: '/worlds',  feature: 'worlds',  icon: <Globe className="size-5 mb-0.5 inline-flex mr-1" /> },
+  { label: 'Startup',  path: '/startup', feature: null,      icon: <Rocket className="size-5 mb-0.5 inline-flex mr-1" /> },
+  { label: 'Backups',  path: '/backups', feature: null,      icon: <Archive className="size-5 mb-0.5 inline-flex mr-1" /> },
+  { label: 'Settings', path: '/settings', feature: null,     icon: <Settings className="size-5 mb-0.5 inline-flex mr-1" /> },
 ]
 
 export default function ServerTabs({ uuid, features = [] }: TabsProps) {
   const pathname = usePathname()
+  const mobileStripRef = useRef<HTMLDivElement>(null)
   const base = `/server/${uuid}`
 
   const visibleTabs = tabs.filter(t => {
@@ -35,10 +37,18 @@ export default function ServerTabs({ uuid, features = [] }: TabsProps) {
     return true
   })
 
+  useEffect(() => {
+    const strip = mobileStripRef.current
+    if (!strip) return
+    const active = strip.querySelector<HTMLElement>('[data-active="true"]')
+    if (!active) return
+    strip.scrollLeft = active.offsetLeft - strip.offsetWidth / 2 + active.offsetWidth / 2
+  }, [pathname])
+
   return (
     <>
       {/* ── Mobile: scrollable compact strip ── */}
-      <div className="sm:hidden overflow-x-auto border-b border-neutral-200 dark:border-white/5 mb-4 -mx-4 px-4">
+      <div ref={mobileStripRef} className="sm:hidden overflow-x-auto border-b border-neutral-200 dark:border-white/5 mb-4 -mx-4 px-4">
         <nav className="flex gap-1 min-w-max pb-1">
           {visibleTabs.map(tab => {
             const href = `${base}${tab.path}`
