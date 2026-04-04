@@ -109,6 +109,11 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
       <InstallBanner uuid={uuid} installing={installing} />
       <FadeUp delay={0.06}>
         <div className="px-4 sm:px-8 mt-4 pb-8">
+          {status === 'running' && (
+            <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+              <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Stop the server before managing worlds.</p>
+            </div>
+          )}
           {worlds.length === 0 ? (
             <div className="bg-neutral-100 dark:bg-neutral-500/20 border border-neutral-200 dark:border-transparent p-4 rounded-xl flex items-start space-x-4">
               <Info className="w-6 h-6 mt-1 text-blue-400 shrink-0" />
@@ -138,7 +143,7 @@ export default function WorldsPage({ params }: { params: Promise<{ uuid: string 
                           />
                           <div>
                             <div className="font-medium text-neutral-800 dark:text-white">{world.name}</div>
-                            <div className="text-neutral-500 dark:text-neutral-400 text-xs mt-1">Minecraft World</div>
+                            <div className="text-neutral-500 dark:text-neutral-400 text-xs mt-1">{world.type || 'Minecraft World'}</div>
                           </div>
                         </div>
                       </td>

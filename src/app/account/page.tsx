@@ -53,6 +53,7 @@ export default function AccountPage() {
     email: '',
     currentPassword: '',
     newPassword: '',
+    confirmNewPassword: '',
   })
 
   useEffect(() => {
@@ -122,6 +123,11 @@ export default function AccountPage() {
       email: form.email,
     }
     if (form.newPassword) {
+      if (form.newPassword !== form.confirmNewPassword) {
+        showToast('New passwords do not match.', 'error')
+        setSaving(false)
+        return
+      }
       payload.newPassword = form.newPassword
       payload.currentPassword = form.currentPassword
     }
@@ -133,7 +139,7 @@ export default function AccountPage() {
     const d = await res.json()
     if (res.ok) {
       showToast('Profile updated.', 'success')
-      setForm(f => ({ ...f, currentPassword: '', newPassword: '' }))
+      setForm(f => ({ ...f, currentPassword: '', newPassword: '', confirmNewPassword: '' }))
     } else {
       showToast(d.error || 'Failed to update.', 'error')
     }
@@ -266,6 +272,14 @@ export default function AccountPage() {
                   value={form.newPassword}
                   onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))}
                   placeholder="New password"
+                  disabled={!form.currentPassword}
+                />
+                <input
+                  className={inputClass}
+                  type="password"
+                  value={form.confirmNewPassword}
+                  onChange={e => setForm(f => ({ ...f, confirmNewPassword: e.target.value }))}
+                  placeholder="Confirm new password"
                   disabled={!form.currentPassword}
                 />
               </div>

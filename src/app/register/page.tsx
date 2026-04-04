@@ -22,11 +22,13 @@ const inputClass = "w-full px-3.5 py-2.5 rounded-[10px] border border-neutral-20
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [visible, setVisible] = useState(false)
-  const [settings, setSettings] = useState<{ title: string; logo: string; registerWallpaper?: string } | null>(null)
+  const [settings, setSettings] = useState<{ title: string; logo: string; registerWallpaper?: string; loginWallpaper?: string; allowRegistration?: boolean } | null>(null)
   const router = useRouter()
   const strength = passwordStrength(password)
 
@@ -52,6 +54,11 @@ export default function RegisterPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.')
+      setLoading(false)
+      return
+    }
     const fd = new FormData(e.currentTarget)
     try {
       const res = await fetch('/api/auth/register', {
@@ -89,12 +96,13 @@ export default function RegisterPage() {
         transition: 'opacity 0.4s ease, transform 0.4s cubic-bezier(0.16,1,0.3,1)',
       }}>
         <div className="mb-8">
+          <img src={settings?.logo || '/assets/logo.png'} alt="" className="h-10 w-10 rounded-xl object-contain mb-5" onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
           <h1 className="text-2xl font-semibold text-neutral-900 dark:text-white">Create account</h1>
           <p className="text-sm text-neutral-500 mt-1">Join {settings?.title || 'Airlink'}</p>
         </div>
 
         {error && (
-          <div className="mb-4 px-3.5 py-2.5 rounded-[10px] bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-sm text-red-600 dark:text-red-400">{error}</div>
+          <div className="mb-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 px-3 py-2 text-sm text-red-500">{error}</div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -114,7 +122,7 @@ export default function RegisterPage() {
                 value={password} onChange={e => setPassword(e.target.value)} />
               <button type="button" onClick={() => setShowPassword(v => !v)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors" aria-label="Toggle password">
-                <Eye className="w-4 h-4" />
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
             {strength.label && (
@@ -126,6 +134,18 @@ export default function RegisterPage() {
               </div>
             )}
           </div>
+          <div>
+            <label className="block text-[13px] font-medium text-neutral-500 dark:text-neutral-400 mb-1.5" htmlFor="confirmPassword">Confirm password</label>
+            <div className="relative">
+              <input id="confirmPassword" type={showConfirmPassword ? 'text' : 'password'} autoComplete="new-password" required
+                className={inputClass + ' pr-10'} placeholder="••••••••"
+                value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} />
+              <button type="button" onClick={() => setShowConfirmPassword(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition-colors" aria-label="Toggle confirm password">
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
 
           <button type="submit" disabled={loading}
             className="w-full py-[11px] rounded-[10px] bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-[14px] font-medium flex items-center justify-center gap-2 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-60 disabled:cursor-default transition-colors">
@@ -135,13 +155,15 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mt-6">
-          Already have an account?{' '}
-          <Link href="/login" className="font-medium text-neutral-800 dark:text-neutral-200 hover:underline">Sign in</Link>
-        </p>
+        {settings?.allowRegistration !== false && (
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 text-center mt-6">
+            Already have an account?{' '}
+            <Link href="/login" className="font-medium text-neutral-800 dark:text-neutral-200 hover:underline">Sign in</Link>
+          </p>
+        )}
       </div>
       <div className="hidden md:block flex-1 bg-neutral-100 dark:bg-neutral-900"
-        style={settings?.registerWallpaper ? { background: `url('${settings.registerWallpaper}') center/cover no-repeat` } : {}} />
+        style={settings?.registerWallpaper || settings?.loginWallpaper ? { background: `url('${settings?.registerWallpaper || settings?.loginWallpaper}') center/cover no-repeat` } : {}} />
     </div>
   )
 }

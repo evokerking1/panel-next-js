@@ -33,6 +33,10 @@ interface FolderData {
   members: { serverUUID: string }[]
 }
 
+interface PublicSettings {
+  allowUserCreateServer?: boolean
+}
+
 type ViewMode = 'grid' | 'list'
 
 function StatusBadge({ status }: { status?: string }) {
@@ -125,6 +129,7 @@ function DashboardInner() {
   const [newFolderName, setNewFolderName] = useState('')
   const [activeFolder, setActiveFolder] = useState<FolderData | null>(null)
   const [deleteFolderConfirm, setDeleteFolderConfirm] = useState(false)
+  const [canCreateServer, setCanCreateServer] = useState(false)
   const dragUUID = useRef<string | null>(null)
   const dragName = useRef<string | null>(null)
 
@@ -132,9 +137,11 @@ function DashboardInner() {
     Promise.all([
       fetch('/api/user/servers').then(r => r.json()),
       fetch('/api/user/folders').then(r => r.json()),
-    ]).then(([sd, fd]) => {
+      fetch('/api/public/settings').then(r => r.json()),
+    ]).then(([sd, fd, settings]) => {
       setServers(sd.servers || [])
       setFolders(fd.folders || [])
+      setCanCreateServer(Boolean((settings as PublicSettings).allowUserCreateServer))
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
@@ -262,7 +269,7 @@ function DashboardInner() {
           <p className="text-sm text-neutral-500 mt-0.5">Manage and monitor your servers</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {!user?.isAdmin && (
+          {canCreateServer && (
             <Link href="/create-server" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
               <Plus className="h-4 w-4" />
               New server
@@ -295,9 +302,9 @@ function DashboardInner() {
           <Server className="h-16 w-16 text-neutral-200 dark:text-neutral-700 mb-4" />
           <h2 className="text-base font-medium text-neutral-800 dark:text-white">No servers yet</h2>
           <p className="text-sm text-neutral-500 mt-1">
-            {!user?.isAdmin
+            {canCreateServer
               ? <><Link href="/create-server" className="text-blue-500 hover:underline">Create one</Link> to get started.</>
-              : 'Servers you manage will appear here.'}
+              : 'You have no servers yet.'}
           </p>
         </div>
       ) : (

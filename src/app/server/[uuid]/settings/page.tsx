@@ -9,7 +9,7 @@ import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
 import Modal from '@/components/ui/Modal'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 interface ServerData {
   id: number
@@ -68,6 +68,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
   const [loading, setLoading] = useState(true)
   const [sftpCredentials, setSftpCredentials] = useState<SftpCredentials | null>(null)
   const [fetchingSftp, setFetchingSftp] = useState(false)
+  const [showSftpPassword, setShowSftpPassword] = useState(false)
 
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
@@ -209,18 +210,29 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
             <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <InfoRow label="Host" value={sftpCredentials.host} />
               <InfoRow label="Username" value={sftpCredentials.username} />
-              <InfoRow label="Password" value={sftpCredentials.password} />
+              <div>
+                <p className="text-xs text-neutral-500 mb-0.5">Password</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-neutral-700 dark:text-neutral-300 font-mono">{showSftpPassword ? sftpCredentials.password : '••••••••••••'}</p>
+                  <button type="button" onClick={() => setShowSftpPassword(v => !v)} className="text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-white inline-flex items-center gap-1">
+                    {showSftpPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    {showSftpPassword ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </Section>
 
         {user?.isAdmin && (
-          <Section title="Danger Zone" desc="Irreversible actions.">
+          <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/30 p-5">
+            <h2 className="text-sm font-semibold mb-1 text-red-700 dark:text-red-300">Danger Zone</h2>
+            <p className="text-xs text-red-500 mb-4">Irreversible actions.</p>
             <button type="button" onClick={() => setDeleteOpen(true)}
               className="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition">
               Delete Server
             </button>
-          </Section>
+          </div>
         )}
       </div>
 

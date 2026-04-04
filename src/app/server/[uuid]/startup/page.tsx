@@ -7,7 +7,7 @@ import InstallBanner from '@/components/server/InstallBanner'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Lock } from 'lucide-react'
 
 interface ServerVariable {
   name: string
@@ -107,6 +107,7 @@ function Inner({ uuid }: { uuid: string }) {
   )
 
   const allDockerOptions = dockerImages.flatMap(obj => Object.entries(obj).map(([label, image]) => ({ label, image })))
+  const visibleVars = vars.filter(v => v.user_viewable !== false)
 
   return (
     <div className="px-4 sm:px-8 pt-4 pb-8 space-y-6">
@@ -150,25 +151,33 @@ function Inner({ uuid }: { uuid: string }) {
             </span>
           </div>
           <p className="text-xs text-neutral-500 mb-4">Select the docker image to run this server with.</p>
-          <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)} className={inputClass}>
-            {allDockerOptions.map(({ label, image }) => (
-              <option key={image} value={image}>{label}</option>
-            ))}
-          </select>
-          <button onClick={saveDockerImage}
-            className="mt-4 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
-            Update image
-          </button>
+          {allDockerOptions.length === 1 ? (
+            <div className="rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-100 dark:bg-neutral-600/20 px-4 py-2.5 text-sm text-neutral-800 dark:text-white">
+              {allDockerOptions[0].label}
+            </div>
+          ) : (
+            <>
+              <select value={selectedImage} onChange={e => setSelectedImage(e.target.value)} className={inputClass}>
+                {allDockerOptions.map(({ label, image }) => (
+                  <option key={image} value={image}>{label}</option>
+                ))}
+              </select>
+              <button onClick={saveDockerImage}
+                className="mt-4 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
+                Update image
+              </button>
+            </>
+          )}
         </div>
       )}
 
       {/* Variables */}
-      {vars.filter(v => v.user_viewable !== false).length > 0 && (
+      {visibleVars.length > 0 ? (
         <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5">
           <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">Environment Variables</h2>
           <p className="text-xs text-neutral-500 mb-4">Variables passed to your server on startup.</p>
           <div className="space-y-4">
-            {vars.filter(v => v.user_viewable !== false).map((v, i) => {
+            {visibleVars.map((v, i) => {
               const canEdit = v.user_editable !== false
               const key = v.env_variable || v.env || v.name
               const realIdx = vars.indexOf(v)
@@ -177,16 +186,21 @@ function Inner({ uuid }: { uuid: string }) {
                   <div className="flex items-center gap-2 mb-1">
                     <label className="text-xs font-medium text-neutral-700 dark:text-neutral-300">{v.name}</label>
                     <span className="text-[10px] font-mono text-neutral-400">{key}</span>
+                    {!canEdit && <span className="inline-flex items-center gap-1 rounded-md bg-neutral-200 dark:bg-neutral-700 px-2 py-0.5 text-[10px] text-neutral-600 dark:text-neutral-300"><Lock className="h-3 w-3" />Read-only</span>}
                   </div>
                   {v.description && <p className="text-xs text-neutral-500 mb-1.5">{v.description}</p>}
                   {v.type === 'boolean' ? (
-                    <label className="flex items-center gap-2 cursor-pointer">
+                    <label className="flex items-center gap-3 cursor-pointer">
                       <input type="checkbox" disabled={!canEdit}
                         checked={String(v.value) === 'true' || v.value === true}
                         onChange={e => updateVar(realIdx, e.target.checked)}
-                        className="rounded" />
+                        className="h-4 w-4 rounded border-neutral-300 dark:border-neutral-600" />
                       <span className="text-sm text-neutral-600 dark:text-neutral-400">Enabled</span>
                     </label>
+                  ) : !canEdit ? (
+                    <div className="rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-100 dark:bg-neutral-600/20 px-4 py-2.5 text-sm text-neutral-800 dark:text-white">
+                      {String(v.value ?? v.default_value ?? '') || '—'}
+                    </div>
                   ) : (
                     <input type={v.type === 'number' ? 'number' : 'text'}
                       value={String(v.value ?? v.default_value ?? '')}
@@ -203,6 +217,10 @@ function Inner({ uuid }: { uuid: string }) {
             className="mt-5 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-50 transition">
             {saving ? 'Saving...' : 'Save variables'}
           </button>
+        </div>
+      ) : (
+        <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5 text-sm text-neutral-400">
+          No configurable variables for this server.
         </div>
       )}
     </div>

@@ -14,6 +14,8 @@ interface OverviewData {
   imageCount: number
   version: string
   nodeEnv: string
+  nodes?: { id: number; name: string; address: string; port: number; online: boolean }[]
+  recentServers?: { id: number; uuid: string; name: string; createdAt: string; owner: string }[]
 }
 
 export default function AdminOverviewPage() {
@@ -156,6 +158,48 @@ export default function AdminOverviewPage() {
                       <div className="text-sm rounded-lg p-3 bg-neutral-200/60 dark:bg-neutral-800/60 text-neutral-500">
                         Click "Check Updates" to check.
                       </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </FadeUp>
+
+            <FadeUp delay={0.12}>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+                <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-neutral-200 dark:border-white/5">
+                    <p className="text-sm font-medium text-neutral-800 dark:text-white">Node Status</p>
+                  </div>
+                  <div className="divide-y divide-neutral-100 dark:divide-white/5">
+                    {data.nodes?.length ? data.nodes.map(node => (
+                      <div key={node.id} className="flex items-center justify-between px-5 py-3">
+                        <div>
+                          <p className="text-sm font-medium text-neutral-800 dark:text-white">{node.name}</p>
+                          <p className="text-xs font-mono text-neutral-400">{node.address}:{node.port}</p>
+                        </div>
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-medium ${node.online ? 'bg-emerald-50 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/30' : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20'}`}>
+                          <span className={`h-1.5 w-1.5 rounded-full ${node.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                          {node.online ? 'Online' : 'Offline'}
+                        </span>
+                      </div>
+                    )) : (
+                      <p className="px-5 py-4 text-sm text-neutral-400">No nodes available.</p>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 overflow-hidden">
+                  <div className="px-5 py-3.5 border-b border-neutral-200 dark:border-white/5">
+                    <p className="text-sm font-medium text-neutral-800 dark:text-white">Recent Activity</p>
+                  </div>
+                  <div className="divide-y divide-neutral-100 dark:divide-white/5">
+                    {data.recentServers?.length ? data.recentServers.map(server => (
+                      <div key={server.id} className="px-5 py-3">
+                        <p className="text-sm font-medium text-neutral-800 dark:text-white">{server.name}</p>
+                        <p className="text-xs text-neutral-500">Created by {server.owner} on {new Date(server.createdAt).toLocaleString()}</p>
+                      </div>
+                    )) : (
+                      <p className="px-5 py-4 text-sm text-neutral-400">No recent server activity.</p>
                     )}
                   </div>
                 </div>

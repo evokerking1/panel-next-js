@@ -94,6 +94,10 @@ export async function PUT(req: NextRequest) {
       description: body.description || '',
       allowRegistration: body.allowRegistration === true || body.allowRegistration === 'true',
       uploadLimit: parseInt(body.uploadLimit) || 100,
+      loginWallpaper: typeof body.loginWallpaper === 'string' ? body.loginWallpaper.trim() || null : null,
+      registerWallpaper: typeof body.registerWallpaper === 'string' ? body.registerWallpaper.trim() || null : null,
+      lightTheme: typeof body.lightTheme === 'string' ? body.lightTheme : 'default',
+      darkTheme: typeof body.darkTheme === 'string' ? body.darkTheme : 'default',
     };
     if (typeof body.virusTotalApiKey === 'string') {
       data.virusTotalApiKey = body.virusTotalApiKey.trim() || null;

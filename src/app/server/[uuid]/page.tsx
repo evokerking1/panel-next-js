@@ -2,6 +2,7 @@
 
 import { use, useCallback, useEffect, useRef, useState } from 'react'
 import type { CSSProperties } from 'react'
+import dynamic from 'next/dynamic'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
@@ -9,11 +10,26 @@ import InstallBanner from '@/components/server/InstallBanner'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { FadeUp } from '@/components/ui/Animate'
-import { Play, RotateCcw, Square, Copy, Loader2, Tag, Server, Hash, AlertTriangle } from 'lucide-react'
-import { Line } from 'react-chartjs-2'
-import { Chart, LineElement, PointElement, LineController, CategoryScale, LinearScale, Filler } from 'chart.js'
+import { Play, RotateCcw, Square, Copy, Loader2, Tag, Server, Hash, AlertTriangle, Check } from 'lucide-react'
 
-Chart.register(LineElement, PointElement, LineController, CategoryScale, LinearScale, Filler)
+const LineChart = dynamic(
+  async () => {
+    const [{ Line }, chartJs] = await Promise.all([
+      import('react-chartjs-2'),
+      import('chart.js'),
+    ])
+    chartJs.Chart.register(
+      chartJs.LineElement,
+      chartJs.PointElement,
+      chartJs.LineController,
+      chartJs.CategoryScale,
+      chartJs.LinearScale,
+      chartJs.Filler,
+    )
+    return Line
+  },
+  { ssr: false }
+)
 
 interface ServerData {
   UUID: string
@@ -35,6 +51,7 @@ interface StatsCardProps {
   title: string
   value: string
   index: number
+  sublabel?: string
 }
 
 interface SparklineCardProps {
@@ -83,27 +100,7 @@ function maskPrompts(raw: string): string {
   return plain.replace(PROMPT_RE, 'airlinkd~ ')
 }
 
-function extractConsoleText(raw: string): string {
-  try {
-    const data = JSON.parse(raw)
-    return (
-      data.line ??
-      data.output ??
-      data.args?.[0]?.line ??
-      data.args?.[0]?.message ??
-      (typeof data.args?.[0] === 'string' ? data.args[0] : null) ??
-      data.data?.line ??
-      data.data?.message ??
-      (typeof data.data === 'string' ? data.data : null) ??
-      data.message ??
-      ''
-    )
-  } catch {
-    return raw
-  }
-}
-
-function StatsCard({ title, value, index }: StatsCardProps) {
+function StatsCard({ title, value, index, sublabel }: StatsCardProps) {
   return (
     <div
       className="stats-card overflow-hidden bg-white dark:bg-neutral-800/50 backdrop-blur-sm border border-neutral-200 dark:border-neutral-700/30 rounded-xl px-4 py-4 shadow-sm hover:shadow-md transition-shadow duration-200 hover:bg-neutral-50 dark:hover:bg-neutral-700/30 flex-1"
@@ -111,6 +108,7 @@ function StatsCard({ title, value, index }: StatsCardProps) {
     >
       <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}:</h2>
       <p className="mt-1 text-lg font-medium tracking-tight text-neutral-800 dark:text-white">{value}</p>
+      {sublabel && <p className="mt-0.5 text-xs text-neutral-500 dark:text-neutral-400">{sublabel}</p>}
     </div>
   )
 }
@@ -143,7 +141,7 @@ function SparklineCard({ title, value, history, color, index }: SparklineCardPro
       style={{ '--i': index } as CSSProperties}
     >
       <div className="absolute inset-0 pointer-events-none">
-        <Line data={data} options={options} />
+        <LineChart data={data} options={options} />
       </div>
       <div className="relative z-10">
         <h2 className="text-sm font-medium text-neutral-500 dark:text-neutral-400">{title}:</h2>
@@ -184,6 +182,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   const [terminalReady, setTerminalReady] = useState(false)
   const [ramHistory, setRamHistory] = useState<number[]>([])
   const [cpuHistory, setCpuHistory] = useState<number[]>([])
+  const [copied, setCopied] = useState(false)
   const daemonFailCount = useRef(0)
   const consoleConnectedRef = useRef(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -245,16 +244,18 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   useEffect(() => {
     if (!termContainerRef.current) return
 
+    let disposed = false
     let term: import('@xterm/xterm').Terminal | null = null
-    let cleanup: (() => void) | null = null
+    let termEl: HTMLDivElement | null = termContainerRef.current
+    let removeListeners: (() => void) | null = null
 
-    Promise.all([
+    void Promise.all([
       import('@xterm/xterm'),
       import('@xterm/addon-fit'),
-    ]).then(([{ Terminal }, { FitAddon }]) => {
-      if (!termContainerRef.current) return
+    ]).then(([xterm, addonFit]) => {
+      if (disposed || !termContainerRef.current) return
 
-      term = new Terminal({
+      term = new xterm.Terminal({
         disableStdin: true,
         lineHeight: 1.35,
         fontFamily: 'Menlo, Monaco, Consolas, monospace',
@@ -286,12 +287,15 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
         convertEol: true,
       })
 
-      const fitAddon = new FitAddon()
+      const fitAddon = new addonFit.FitAddon()
       term.loadAddon(fitAddon)
       term.open(termContainerRef.current)
-      requestAnimationFrame(() => fitAddon.fit())
+      requestAnimationFrame(() => {
+        if (disposed) return
+        fitAddon.fit()
+        setTerminalReady(true)
+      })
       termRef.current = term
-      setTerminalReady(true)
 
       for (const line of pendingConsoleLinesRef.current) {
         term.write(line)
@@ -301,15 +305,13 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       const onResize = () => fitAddon.fit()
       window.addEventListener('resize', onResize)
 
-      const termEl = termContainerRef.current
       let touchStartY = 0
 
       const handleWheel = (e: WheelEvent) => {
-        if (!term) return
         e.preventDefault()
         e.stopPropagation()
         const lines = e.deltaMode === 1 ? e.deltaY : Math.round(e.deltaY / 20)
-        term.scrollLines(lines)
+        term?.scrollLines(lines)
       }
 
       const handleTouchStart = (e: TouchEvent) => {
@@ -317,31 +319,33 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       }
 
       const handleTouchMove = (e: TouchEvent) => {
-        if (!term) return
         const nextY = e.touches[0]?.clientY ?? touchStartY
         const dy = touchStartY - nextY
         touchStartY = nextY
         e.preventDefault()
         e.stopPropagation()
-        term.scrollLines(Math.round(dy / 16))
+        term?.scrollLines(Math.round(dy / 16))
       }
 
       termEl?.addEventListener('wheel', handleWheel, { passive: false })
       termEl?.addEventListener('touchstart', handleTouchStart, { passive: true })
       termEl?.addEventListener('touchmove', handleTouchMove, { passive: false })
 
-      cleanup = () => {
+      removeListeners = () => {
         window.removeEventListener('resize', onResize)
         termEl?.removeEventListener('wheel', handleWheel)
         termEl?.removeEventListener('touchstart', handleTouchStart)
         termEl?.removeEventListener('touchmove', handleTouchMove)
-        term?.dispose()
-        termRef.current = null
-        setTerminalReady(false)
       }
     })
 
-    return () => { cleanup?.() }
+    return () => {
+      disposed = true
+      removeListeners?.()
+      term?.dispose()
+      termRef.current = null
+      setTerminalReady(false)
+    }
   }, [])
 
   const pollStats = useCallback(() => {
@@ -393,30 +397,12 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
 
       try {
         const data = JSON.parse(raw)
-        if (data.data) {
-          const stats = data.data
-          if (stats.running === false) {
-            setStatus('stopped')
-            setUptime('')
-            return
-          }
-          if (stats.running === true) {
-            setStatus('running')
-          }
-          if (stats.memory || stats.cpu) {
-            applyStats(
-              stats.memory?.percentage ?? '0',
-              stats.cpu?.percentage ?? '0',
-              stats.memory?.usage ?? 0,
-              stats.uptime,
-            )
-          }
-        } else if (data.event === 'state') {
-          const running = data.args?.[0] === 'running'
+        if (data.event === 'state') {
+          const running = data.data?.running === true
           setStatus(running ? 'running' : 'stopped')
           if (!running) setUptime('')
         } else if (data.event === 'stats') {
-          const stats = data.args?.[0]
+          const stats = data.data
           if (stats) {
             applyStats(
               stats.memory?.percentage ?? '0',
@@ -476,8 +462,17 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       }
 
       ws.onmessage = async e => {
-        const raw = await readWsText(e.data)
-        if (!raw || isDaemonInfraError(raw)) return
+        let raw: string
+        if (e.data instanceof Blob) {
+          raw = await e.data.text()
+        } else if (e.data instanceof ArrayBuffer) {
+          raw = new TextDecoder().decode(e.data)
+        } else {
+          raw = String(e.data)
+        }
+
+        if (!raw) return
+        if (isDaemonInfraError(raw)) return
         if (raw.includes('airlinkd server appears to be down')) {
           setDaemonOffline(true)
           ws.close()
@@ -488,11 +483,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
           ws.close()
           return
         }
-        const text = extractConsoleText(raw)
-        if (!text) return
-        const masked = maskPrompts(text)
-        const toWrite = masked.endsWith('\n') ? masked : masked + '\r\n'
-        writeConsoleLine(toWrite)
+        writeConsoleLine(maskPrompts(raw))
       }
 
       ws.onerror = () => {
@@ -567,6 +558,13 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       setActionLoading(false)
       setTimeout(pollStats, 2000)
     }
+  }
+
+  function copyAddress() {
+    navigator.clipboard.writeText(serverIP)
+    setCopied(true)
+    showToast('Copied!', 'success')
+    window.setTimeout(() => setCopied(false), 2000)
   }
 
   async function sendCommand() {
@@ -718,6 +716,11 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
                 <span className="text-[11px] font-medium text-neutral-600 select-none tracking-wide">console</span>
               </div>
               <div className="bg-[#141414] flex-1 relative">
+                {!terminalReady && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-[#141414] z-10">
+                    <span className="text-xs text-neutral-600">Initialising console...</span>
+                  </div>
+                )}
                 <div id="terminal" ref={termContainerRef} />
               </div>
             </div>
@@ -766,11 +769,6 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
                   <span id="ghost-suggestion" className="text-neutral-400 dark:text-neutral-500" />
                 </div>
               </div>
-              {!terminalReady && (
-                <div className="px-4 py-2 text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800/50 border-t border-neutral-200 dark:border-neutral-700/50 rounded-b-xl">
-                  Initializing console...
-                </div>
-              )}
             </div>
           </div>
 
@@ -782,17 +780,17 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
                   <p className="mt-1 text-sm font-medium font-mono tracking-tight text-neutral-800 dark:text-white break-all">{serverIP}</p>
                 </div>
                 <button
-                  onClick={() => { navigator.clipboard.writeText(serverIP); showToast('Copied!', 'success') }}
+                  onClick={copyAddress}
                   className="shrink-0 mt-1 rounded-lg p-1.5 bg-neutral-100 dark:bg-neutral-700/50 hover:bg-neutral-200 dark:hover:bg-neutral-600/50 transition-colors"
                   title="Copy"
                 >
-                  <Copy className="h-3.5 w-3.5 text-neutral-500" />
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5 text-neutral-500" />}
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 lg:grid-cols-1 gap-3 lg:gap-4">
-              <StatsCard title="Status" value={status.charAt(0).toUpperCase() + status.slice(1)} index={1} />
+              <StatsCard title="Status" value={status.charAt(0).toUpperCase() + status.slice(1)} sublabel={uptime ? `Uptime: ${uptime}` : undefined} index={1} />
               <SparklineCard title="RAM" value={`${ramPct}% — ${ramUsed} / ${server.Memory} MB`} history={ramHistory} color="rgba(96, 165, 250, 0.35)" index={2} />
               <SparklineCard title="CPU" value={`${cpuPct}%`} history={cpuHistory} color="rgba(74, 222, 128, 0.35)" index={3} />
               <StatsCard title="Disk Limit" value={`${server.Storage} GB`} index={4} />

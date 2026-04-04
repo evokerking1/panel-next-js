@@ -7,6 +7,7 @@ const defaults = {
   loginWallpaper: null,
   registerWallpaper: null,
   allowRegistration: false,
+  allowUserCreateServer: false,
 };
 
 export async function GET() {
@@ -20,6 +21,7 @@ export async function GET() {
       loginWallpaper: s.loginWallpaper ?? null,
       registerWallpaper: s.registerWallpaper ?? null,
       allowRegistration: s.allowRegistration,
+      allowUserCreateServer: s.allowUserCreateServer,
     });
   } catch {
     return NextResponse.json(defaults);

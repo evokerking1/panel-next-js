@@ -17,6 +17,8 @@ interface Settings {
   allowRegistration?: boolean
   lightTheme?: string
   darkTheme?: string
+  loginWallpaper?: string
+  registerWallpaper?: string
   allowUserCreateServer?: boolean
   allowUserDeleteServer?: boolean
   defaultServerLimit?: number
@@ -205,6 +207,30 @@ export default function AdminSettingsPage() {
                     <Row label="Allow public registration" desc="When off, only admins can create new accounts.">
                       <Toggle checked={!!settings.allowRegistration} onChange={v => set('allowRegistration', v)} />
                     </Row>
+                  </Card>
+
+                  <Card title="Authentication">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Login wallpaper URL</label>
+                      <input type="text" className={inputClass} value={settings.loginWallpaper || ''} onChange={e => set('loginWallpaper', e.target.value)} placeholder="https://example.com/wallpaper.jpg" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Register wallpaper URL</label>
+                      <input type="text" className={inputClass} value={settings.registerWallpaper || ''} onChange={e => set('registerWallpaper', e.target.value)} placeholder="https://example.com/register.jpg" />
+                    </div>
+                  </Card>
+
+                  <Card title="Theme">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Light theme</label>
+                        <input type="text" className={inputClass} value={settings.lightTheme || 'default'} onChange={e => set('lightTheme', e.target.value)} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Dark theme</label>
+                        <input type="text" className={inputClass} value={settings.darkTheme || 'default'} onChange={e => set('darkTheme', e.target.value)} />
+                      </div>
+                    </div>
                   </Card>
                 </div>
               )}

@@ -135,6 +135,11 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
 
       <FadeUp delay={0.06}>
       <div className="px-4 sm:px-8 mt-4 pb-8">
+        {status === 'running' && (
+          <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+            <p className="text-sm font-medium text-amber-700 dark:text-amber-300">Stop the server before restoring backups.</p>
+          </div>
+        )}
         <p className="text-sm text-neutral-500 mb-4">{backups.length} backup{backups.length !== 1 ? 's' : ''}</p>
 
         {loading ? (
@@ -142,8 +147,8 @@ export default function ServerBackupsPage({ params }: { params: Promise<{ uuid: 
         ) : backups.length === 0 ? (
           <div className="rounded-xl border border-neutral-200 dark:border-white/5 py-12 text-center">
             <Archive className="mx-auto h-10 w-10 text-neutral-300 dark:text-neutral-600 mb-3" />
-            <p className="text-sm font-medium text-neutral-900 dark:text-white">No backups</p>
-            <p className="mt-1 text-sm text-neutral-500">Get started by creating your first backup.</p>
+            <p className="text-sm font-medium text-neutral-900 dark:text-white">No backups yet</p>
+            <p className="mt-1 text-sm text-neutral-500">Create your first backup.</p>
           </div>
         ) : (
           <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">

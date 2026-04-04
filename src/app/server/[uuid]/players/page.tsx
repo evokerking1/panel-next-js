@@ -6,8 +6,9 @@ import ServerHeader from '@/components/server/ServerHeader'
 import ServerTabs from '@/components/server/ServerTabs'
 import InstallBanner from '@/components/server/InstallBanner'
 import { useAuth } from '@/hooks/useAuth'
+import { useToastContext } from '@/components/layout/PanelLayout'
 import { FadeUp } from '@/components/ui/Animate'
-import { Loader2, RefreshCw, WifiOff, Users, HelpCircle } from 'lucide-react'
+import { Loader2, RefreshCw, WifiOff, Users, HelpCircle, Gavel, UserX } from 'lucide-react'
 
 interface Player { name: string; uuid: string }
 
@@ -25,6 +26,7 @@ interface ServerInfo {
 export default function PlayersPage({ params }: { params: Promise<{ uuid: string }> }) {
   const { uuid } = use(params)
   useAuth({ require: true })
+  const { showToast } = useToastContext()
 
   const [server, setServer] = useState<ServerInfo | null>(null)
   const [features, setFeatures] = useState<string[]>([])
@@ -74,6 +76,23 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
     return () => clearInterval(t)
   }, [])
 
+  async function sendPlayerAction(action: 'kick' | 'ban', playerName: string) {
+    try {
+      const res = await fetch(`/api/server/${uuid}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'command', command: `${action} ${playerName}` }),
+      })
+      if (res.ok) {
+        showToast(`${action === 'kick' ? 'Kick' : 'Ban'} command sent for ${playerName}.`, 'success')
+      } else {
+        showToast('Failed to send player action.', 'error')
+      }
+    } catch {
+      showToast('Failed to send player action.', 'error')
+    }
+  }
+
   if (loading || !server) return (
     <PanelLayout>
       <div className="flex items-center justify-center h-64">
@@ -100,10 +119,8 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                 <p className="text-neutral-600 dark:text-neutral-400 text-sm">
                   {serverInfo ? (
                     <>
-                      <span className="font-medium">{serverInfo.onlinePlayers}</span>
-                      {' / '}
-                      <span>{serverInfo.maxPlayers}</span> players online
-                      {serverInfo.version && <> · <span className="text-neutral-500">Version: {serverInfo.version}</span></>}
+                      <span className="font-medium">{serverInfo.onlinePlayers}/{serverInfo.maxPlayers}</span> players
+                      {serverInfo.version && <> — <span className="text-neutral-500">{serverInfo.version}</span></>}
                     </>
                   ) : 'Manage your server\'s player list'}
                 </p>
@@ -111,7 +128,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
             </div>
             <div className="text-xs text-neutral-500 flex items-center gap-1">
               <RefreshCw className="h-3 w-3" />
-              Refreshing in <span className="font-medium mx-1">{countdown}</span> seconds ·
+              Refreshing in <span className="font-medium mx-1">{countdown}s</span> ·
               <button onClick={fetchPlayers} className="ml-1 text-blue-400 hover:text-blue-300 transition-colors">
                 Refresh now
               </button>
@@ -122,7 +139,8 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
               {players.map(player => (
                 <div key={player.uuid} className="relative p-4 bg-neutral-100 dark:bg-neutral-800 rounded-xl shadow-lg group hover:bg-neutral-200/60 dark:hover:bg-neutral-700/50 transition-all duration-200">
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center min-w-0">
                     <img
                       src={`https://crafatar.com/avatars/${player.uuid}?size=64&overlay`}
                       alt={`${player.name}'s avatar`}
@@ -136,6 +154,17 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                         <span className="inline-flex h-2 w-2 rounded-full bg-green-500 mr-2" />
                         <span className="text-xs text-neutral-500 dark:text-neutral-400">Online</span>
                       </div>
+                    </div>
+                    </div>
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <button onClick={() => sendPlayerAction('kick', player.name)} className="px-2 py-1 text-xs rounded-lg border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-700/40 text-neutral-700 dark:text-neutral-200 hover:bg-neutral-50 dark:hover:bg-neutral-700 inline-flex items-center gap-1">
+                        <UserX className="h-3 w-3" />
+                        Kick
+                      </button>
+                      <button onClick={() => sendPlayerAction('ban', player.name)} className="px-2 py-1 text-xs rounded-lg border border-red-200 dark:border-red-900/30 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 inline-flex items-center gap-1">
+                        <Gavel className="h-3 w-3" />
+                        Ban
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -151,7 +180,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                     </div>
                   </div>
                   <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">Server Offline</h2>
-                  <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">Start your server to see online players.</p>
+                  <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">Server must be running to view players.</p>
                   <button onClick={fetchPlayers} className="mt-6 px-4 py-2 bg-neutral-800 dark:bg-neutral-700 text-white rounded-lg hover:bg-neutral-600 transition-all duration-200 inline-flex items-center gap-2 text-sm">
                     <RefreshCw className="h-4 w-4" />
                     Refresh
@@ -165,7 +194,7 @@ export default function PlayersPage({ params }: { params: Promise<{ uuid: string
                     </div>
                   </div>
                   <h2 className="text-xl font-semibold text-neutral-700 dark:text-neutral-300">Server is online</h2>
-                  <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">No players are currently connected. Players will appear here when they join.</p>
+                  <p className="mt-2 text-sm text-neutral-500 max-w-md mx-auto">No players online.</p>
                   {serverInfo && (
                     <div className="mt-4 text-sm text-neutral-600 dark:text-neutral-400 flex items-center justify-center gap-6">
                       <span><span className="font-semibold">Version:</span> {serverInfo.version}</span>
