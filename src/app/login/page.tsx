@@ -23,7 +23,7 @@ function LoginForm() {
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
-    const errParam = params.get('err')
+    const errParam = params?.get('err')
     if (errParam && errorMessages[errParam]) setError(errorMessages[errParam])
     fetch('/api/auth/me')
       .then(r => r.json())
@@ -42,7 +42,7 @@ function LoginForm() {
       .then(r => r.json())
       .then(d => { if (d) setSettings(d) })
       .catch(() => {})
-  }, [])
+  }, [params, router])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault()

@@ -28,7 +28,7 @@ const tabs: Tab[] = [
 ]
 
 export default function ServerTabs({ uuid, features = [] }: TabsProps) {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const mobileStripRef = useRef<HTMLDivElement>(null)
   const base = `/server/${uuid}`
 

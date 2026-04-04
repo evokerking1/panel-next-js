@@ -13,12 +13,14 @@ const numClass = "w-40 rounded-xl border border-neutral-200 dark:border-white/5 
 
 interface Settings {
   title?: string
+  description?: string
   logo?: string
   allowRegistration?: boolean
   lightTheme?: string
   darkTheme?: string
   loginWallpaper?: string
   registerWallpaper?: string
+  uploadLimit?: number
   allowUserCreateServer?: boolean
   allowUserDeleteServer?: boolean
   defaultServerLimit?: number
@@ -28,6 +30,7 @@ interface Settings {
   enforceDaemonHttps?: boolean
   rateLimitEnabled?: boolean
   rateLimitRpm?: number
+  virusTotalApiKey?: string
   loginMaxAttempts?: number
   loginLockoutMinutes?: number
   behindReverseProxy?: boolean
@@ -201,6 +204,10 @@ export default function AdminSettingsPage() {
                         <p className="text-xs text-neutral-400 mt-1">PNG or JPG auto-converted to .ico</p>
                       </div>
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Panel description</label>
+                      <input type="text" className={inputClass} value={settings.description || ''} onChange={e => set('description', e.target.value)} />
+                    </div>
                   </Card>
 
                   <Card title="Registration">
@@ -217,6 +224,15 @@ export default function AdminSettingsPage() {
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Register wallpaper URL</label>
                       <input type="text" className={inputClass} value={settings.registerWallpaper || ''} onChange={e => set('registerWallpaper', e.target.value)} placeholder="https://example.com/register.jpg" />
+                    </div>
+                  </Card>
+
+                  <Card title="File Uploads">
+                    <div className="max-w-xs">
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Upload limit (MB)</label>
+                      <input type="number" min="1" max="10000" className={numClass} value={settings.uploadLimit ?? 100}
+                        onChange={e => set('uploadLimit', parseInt(e.target.value) || 100)} />
+                      <p className="mt-1.5 text-xs text-neutral-500">Maximum file size users can upload through the file manager.</p>
                     </div>
                   </Card>
 
@@ -290,6 +306,14 @@ export default function AdminSettingsPage() {
                       <input type="number" min="1" max="10000" className={numClass}
                         value={settings.rateLimitRpm ?? 100}
                         onChange={e => set('rateLimitRpm', parseInt(e.target.value) || 100)} />
+                    </div>
+                  </Card>
+
+                  <Card title="VirusTotal">
+                    <div>
+                      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300 mb-1.5">API key</label>
+                      <input type="text" className={inputClass} value={settings.virusTotalApiKey || ''} onChange={e => set('virusTotalApiKey', e.target.value)} placeholder="Paste your key" />
+                      <p className="mt-1.5 text-xs text-neutral-500">Used to scan uploaded files.</p>
                     </div>
                   </Card>
 

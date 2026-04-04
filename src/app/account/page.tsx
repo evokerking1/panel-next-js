@@ -1,6 +1,6 @@
 'use client'
 
-import { Info , Loader2} from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
@@ -47,6 +47,7 @@ export default function AccountPage() {
   const [avatarSrc, setAvatarSrc] = useState('')
   const [uploadingAvatar, setUploadingAvatar] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [usernameStatus, setUsernameStatus] = useState('')
   const [form, setForm] = useState({
     username: '',
     description: '',
@@ -74,6 +75,22 @@ export default function AccountPage() {
       })
       .catch(() => {})
   }, [user])
+
+  useEffect(() => {
+    const username = form.username.trim()
+    if (!fullUser || !username || username === fullUser.username) {
+      setUsernameStatus('')
+      return
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch('/api/user/account')
+        if (!res.ok) return
+        setUsernameStatus('Username will be validated when you save.')
+      } catch {}
+    }, 350)
+    return () => window.clearTimeout(timer)
+  }, [form.username, fullUser])
 
   function resolveAvatar(username: string, avatar: string | null | undefined) {
     if (avatar) return avatar.startsWith('/') ? avatar : `/${avatar}`
@@ -158,7 +175,7 @@ export default function AccountPage() {
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-12 space-y-4 max-w-2xl">
+      <div className="px-4 sm:px-8 md:px-12 pt-5 pb-12 space-y-4 max-w-2xl">
 
         <FadeUp>
           <div className="flex items-start justify-between gap-3 mb-2">
@@ -220,34 +237,47 @@ export default function AccountPage() {
           <Section title="Account details">
             <form onSubmit={save} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Username
-                </label>
-                <input
-                  className={inputClass}
-                  value={form.username}
-                  onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                  placeholder={fullUser.username}
-                />
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Username</label>
+                <div className="flex gap-2">
+                  <input
+                    className={inputClass}
+                    value={form.username}
+                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                    placeholder={fullUser.username}
+                  />
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="shrink-0 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2.5 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
+                  >
+                    Update
+                  </button>
+                </div>
+                {usernameStatus && <p className="mt-1.5 text-xs text-neutral-400">{usernameStatus}</p>}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Email
-                </label>
-                <input
-                  className={inputClass}
-                  type="email"
-                  value={form.email}
-                  onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder={fullUser.email}
-                />
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Email</label>
+                <div className="flex gap-2">
+                  <input
+                    className={inputClass}
+                    type="email"
+                    value={form.email}
+                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder={fullUser.email}
+                  />
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="shrink-0 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2.5 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
+                  >
+                    Update
+                  </button>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">
-                  Description
-                </label>
+              <div className="rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 p-3">
+                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Description</label>
                 <textarea
                   rows={3}
                   className={inputClass + ' resize-none'}
@@ -255,6 +285,13 @@ export default function AccountPage() {
                   onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
                   placeholder="No description set"
                 />
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="mt-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
+                >
+                  Update
+                </button>
               </div>
 
               <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 space-y-3">
@@ -295,8 +332,16 @@ export default function AccountPage() {
           </Section>
         </FadeUp>
 
+        <FadeUp delay={0.1}>
+          <Section title="API tokens">
+            <p className="text-sm text-neutral-500">
+              Personal API token management is not exposed by the current Next.js backend yet.
+            </p>
+          </Section>
+        </FadeUp>
+
         {/* Login history */}
-        <FadeUp delay={0.12}>
+        <FadeUp delay={0.14}>
           <Section title="Login history">
             {fullUser.loginHistory.length === 0 ? (
               <p className="text-sm text-neutral-400 text-center py-4">No login history available.</p>

@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import PanelLayout from '@/components/layout/PanelLayout'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import Modal from '@/components/ui/Modal'
 import { useAuth } from '@/hooks/useAuth'
-import { FadeUp, AnimatedList, AnimatePresence, LayoutGroup } from '@/components/ui/Animate'
-import { Loader2, Trash2, LayoutGrid, List, Plus, FolderPlus, Server, Folder, X } from 'lucide-react'
+import { AnimatedList, LayoutGroup } from '@/components/ui/Animate'
+import { Trash2, LayoutGrid, List, Plus, FolderPlus, Server, Folder, X, Box } from 'lucide-react'
 
 interface Server {
   UUID: string
@@ -100,7 +100,7 @@ function FolderCard({ folder, onDrop, onClick }: { folder: FolderData; onDrop: (
   const [dragOver, setDragOver] = useState(false)
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl px-3.5 py-3 cursor-pointer select-none border transition-all ${
+      className={`folder-card flex items-center gap-3 rounded-xl px-3.5 py-3 cursor-pointer select-none border transition-all active:scale-[0.98] transition-transform duration-100 ${
         dragOver
           ? 'border-amber-400 bg-amber-50/60 dark:bg-amber-500/8 shadow-[0_0_0_2px_rgba(245,158,11,0.25)]'
           : 'bg-neutral-50 dark:bg-white/[0.03] border-neutral-200 dark:border-white/[0.07] hover:bg-neutral-100 dark:hover:bg-white/[0.06]'
@@ -130,6 +130,7 @@ function DashboardInner() {
   const [activeFolder, setActiveFolder] = useState<FolderData | null>(null)
   const [deleteFolderConfirm, setDeleteFolderConfirm] = useState(false)
   const [canCreateServer, setCanCreateServer] = useState(false)
+  const [daemonOffline, setDaemonOffline] = useState(false)
   const dragUUID = useRef<string | null>(null)
   const dragName = useRef<string | null>(null)
 
@@ -139,20 +140,17 @@ function DashboardInner() {
       fetch('/api/user/folders').then(r => r.json()),
       fetch('/api/public/settings').then(r => r.json()),
     ]).then(([sd, fd, settings]) => {
-      setServers(sd.servers || [])
+      const nextServers = sd.servers || []
+      setServers(nextServers)
       setFolders(fd.folders || [])
       setCanCreateServer(Boolean((settings as PublicSettings).allowUserCreateServer))
+      setDaemonOffline(nextServers.some((server: Server) => server.status === 'unknown'))
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const serversNotInFolder = servers.filter(s =>
     !folders.some(f => f.members.some(m => m.serverUUID === s.UUID))
   )
-
-  function handleDragStart(uuid: string, name: string) {
-    dragUUID.current = uuid
-    dragName.current = name
-  }
 
   function handleDragStartWithGhost(uuid: string, name: string, e: React.DragEvent) {
     dragUUID.current = uuid
@@ -254,29 +252,45 @@ function DashboardInner() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin h-6 w-6 text-neutral-400" />
+      <div className="animate-fade-in-up px-4 py-5 lg:px-12 lg:pt-6 lg:pb-8">
+        <div className="mb-5">
+          <div className="skeleton h-5 w-24 mb-2" />
+          <div className="skeleton h-4 w-56" />
+        </div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {[0, 1, 2].map(index => (
+            <div key={index} className="rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800/20 p-4">
+              <div className="skeleton h-4 w-32 mb-2" />
+              <div className="skeleton h-3 w-24 mb-4" />
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="skeleton h-14 w-full" />
+                <div className="skeleton h-14 w-full" />
+                <div className="skeleton h-14 w-full" />
+              </div>
+              <div className="skeleton h-4 w-full" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
-      <FadeUp>
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
+    <div className="animate-fade-in-up px-4 py-5 lg:px-12 lg:pt-6 lg:pb-8">
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
         <div>
           <h1 className="text-base font-medium text-neutral-800 dark:text-white">Servers</h1>
-          <p className="text-sm text-neutral-500 mt-0.5">Manage and monitor your servers</p>
+          <p className="text-xs text-neutral-500 mt-0.5">Manage and monitor your servers</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {canCreateServer && (
-            <Link href="/create-server" className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-sm font-medium hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">
+            <Link href="/create-server" className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium transition active:scale-95 transition-transform duration-100">
               <Plus className="h-4 w-4" />
-              New server
+              New
             </Link>
           )}
           <button onClick={() => setNewFolderOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 text-sm font-medium hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
+            className="rounded-xl bg-neutral-100 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700/40 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-700 transition active:scale-[0.96] transition-transform duration-100 flex items-center gap-1.5">
             <FolderPlus className="h-4 w-4" />
             New folder
           </button>
@@ -284,7 +298,7 @@ function DashboardInner() {
             <div className="flex items-center gap-1 bg-neutral-100 dark:bg-neutral-800/60 p-1 rounded-xl border border-neutral-200 dark:border-white/5">
               {(['grid', 'list'] as const).map(v => (
                 <button key={v} onClick={() => setView(v)}
-                  className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-all ${view === v ? 'bg-white dark:bg-white/[0.08] text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                  className={`px-3 py-1.5 text-sm font-medium rounded-lg flex items-center gap-1.5 transition-all active:scale-[0.96] transition-transform duration-100 ${view === v ? 'bg-white dark:bg-white/[0.08] text-neutral-900 dark:text-white shadow-sm' : 'text-neutral-500 dark:text-neutral-400'}`}>
                   {v === 'grid'
                     ? <LayoutGrid className="h-4 w-4" />
                     : <List className="h-4 w-4" />}
@@ -295,25 +309,43 @@ function DashboardInner() {
           )}
         </div>
       </div>
-      </FadeUp>
+
+      {daemonOffline && (
+        <div className="rounded-xl bg-red-50 dark:bg-red-800/10 border border-red-200 dark:border-red-500/20 px-4 py-3 mb-4 lg:mb-5">
+          <p className="text-sm font-medium text-red-700 dark:text-red-400">Connection Error</p>
+          <p className="text-xs text-red-600 dark:text-red-400/60 mt-0.5">One or more nodes are offline.</p>
+          <button onClick={() => window.location.reload()} className="mt-2 rounded-lg bg-red-600 px-3 py-1 text-xs font-medium text-white hover:bg-red-500 transition active:scale-[0.96] transition-transform duration-100">
+            Retry
+          </button>
+        </div>
+      )}
 
       {servers.length === 0 && folders.length === 0 ? (
         <div className="flex flex-col items-center justify-center mt-32 text-center">
-          <Server className="h-16 w-16 text-neutral-200 dark:text-neutral-700 mb-4" />
+          <Box className="h-20 w-20 text-neutral-300 dark:text-neutral-600 mb-4" />
           <h2 className="text-base font-medium text-neutral-800 dark:text-white">No servers yet</h2>
           <p className="text-sm text-neutral-500 mt-1">
-            {canCreateServer
-              ? <><Link href="/create-server" className="text-blue-500 hover:underline">Create one</Link> to get started.</>
-              : 'You have no servers yet.'}
+            {user?.isAdmin
+              ? <Link href="/admin/servers/create" className="text-blue-500 hover:underline">Create one now</Link>
+              : canCreateServer
+                ? <Link href="/create-server" className="text-blue-500 hover:underline">Create your first server</Link>
+                : 'An admin will assign one to you.'}
           </p>
         </div>
       ) : (
         <>
           {folders.length > 0 && (
             <div className="mb-8">
-              <p className="text-xs font-medium text-neutral-400 dark:text-neutral-500 uppercase tracking-wider mb-3">Folders</p>
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Folders</p>
+                <button onClick={() => setNewFolderOpen(true)} className="text-xs text-neutral-500 active:scale-95 transition-transform duration-100">+ New folder</button>
+              </div>
               <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-                {folders.map(f => <FolderCard key={f.id} folder={f} onDrop={handleDropOnFolder} onClick={setActiveFolder} />)}
+                {folders.map((f, index) => (
+                  <div key={f.id} className="animate-fade-in-up" style={{ animationDelay: `${Math.min(index * 0.04, 0.24)}s` }}>
+                    <FolderCard folder={f} onDrop={handleDropOnFolder} onClick={setActiveFolder} />
+                  </div>
+                ))}
               </AnimatedList>
               <p className="text-xs text-neutral-400 dark:text-neutral-500 mt-2">Drag a server onto a folder to add it</p>
             </div>
@@ -324,7 +356,11 @@ function DashboardInner() {
           <LayoutGroup>
           {view === 'grid' ? (
             <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-              {serversNotInFolder.map(s => <ServerCard key={s.UUID} server={s} onDragStart={handleDragStartWithGhost} />)}
+              {serversNotInFolder.map((s, index) => (
+                <div key={s.UUID} className="animate-fade-in-up" style={{ animationDelay: `${Math.min(index * 0.04, 0.24)}s` }}>
+                  <ServerCard server={s} onDragStart={handleDragStartWithGhost} />
+                </div>
+              ))}
             </AnimatedList>
           ) : (
             <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-x-auto shadow-sm mb-6">
@@ -357,8 +393,8 @@ function DashboardInner() {
       )}
 
       {newFolderOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
-          <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-[14px] w-full max-w-[380px] p-[22px]">
+        <div className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+          <div className="animate-modal-in bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-[14px] w-full max-w-[380px] p-[22px]">
             <p className="text-sm font-semibold text-neutral-800 dark:text-white mb-1">New folder</p>
             <p className="text-xs text-neutral-500 mb-4">Give it a name. Drag server cards onto it to add servers.</p>
             <input autoFocus type="text" value={newFolderName}
@@ -367,24 +403,24 @@ function DashboardInner() {
               className="w-full border border-neutral-200 dark:border-white/[0.10] rounded-[9px] bg-neutral-50 dark:bg-white/[0.04] px-3 py-2 text-[13px] text-neutral-900 dark:text-neutral-100 placeholder:text-neutral-400 outline-none focus:border-neutral-400 dark:focus:border-white/25 mb-4 transition"
               placeholder="e.g. Game Servers" />
             <div className="flex gap-2 justify-end">
-              <button onClick={() => setNewFolderOpen(false)} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-neutral-500 border border-neutral-200 dark:border-white/[0.10] hover:bg-neutral-50 dark:hover:bg-white/5 transition">Cancel</button>
-              <button onClick={handleCreateFolder} className="px-4 py-2 rounded-[9px] text-[13px] font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition">Create</button>
+              <button onClick={() => setNewFolderOpen(false)} className="px-4 py-2 rounded-[9px] text-[13px] font-medium text-neutral-500 border border-neutral-200 dark:border-white/[0.10] hover:bg-neutral-50 dark:hover:bg-white/5 transition active:scale-[0.96] transition-transform duration-100">Cancel</button>
+              <button onClick={handleCreateFolder} className="px-4 py-2 rounded-[9px] text-[13px] font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 transition active:scale-[0.96] transition-transform duration-100">Create</button>
             </div>
           </div>
         </div>
       )}
 
       {activeFolder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
+        <div className="animate-fade-in fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}
           onClick={e => { if (e.target === e.currentTarget) setActiveFolder(null) }}>
-          <div className="bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-[440px] max-h-[80vh] flex flex-col overflow-hidden">
+          <div className="animate-modal-in bg-white dark:bg-[#1c1c1c] border border-neutral-200 dark:border-white/[0.08] rounded-2xl w-full max-w-[440px] max-h-[80vh] flex flex-col overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-200 dark:border-white/5 shrink-0">
               <h2 className="text-sm font-semibold text-neutral-800 dark:text-white">{activeFolder.name}</h2>
               <div className="flex items-center gap-1">
-                <button onClick={() => setDeleteFolderConfirm(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-500/10 text-red-400 hover:text-red-500 transition">
+                <button onClick={() => setDeleteFolderConfirm(true)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-100 dark:hover:bg-red-500/10 text-red-400 hover:text-red-500 transition active:scale-90 transition-transform duration-100">
                   <Trash2 className="w-3.5 h-3.5" />
                 </button>
-                <button onClick={() => setActiveFolder(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 transition">
+                <button onClick={() => setActiveFolder(null)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 transition active:scale-90 transition-transform duration-100">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -399,7 +435,7 @@ function DashboardInner() {
                           <span className="text-sm font-medium text-neutral-800 dark:text-white truncate">{s.name}</span>
                           <StatusBadge status={s.status} />
                         </Link>
-                        <button onClick={() => removeFromFolder(s.UUID)} className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition" title="Remove">
+                        <button onClick={() => removeFromFolder(s.UUID)} className="shrink-0 p-1.5 rounded-lg text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition active:scale-90 transition-transform duration-100" title="Remove">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>

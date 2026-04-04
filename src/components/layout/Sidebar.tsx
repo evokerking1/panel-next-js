@@ -5,13 +5,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import {
-  Server, Coins, LayoutDashboard, Settings, Users, Network, Box,
-  Puzzle, Key, BarChart3, LogOut, Sun, Moon,
+  Server, LayoutDashboard, Settings, Users, Network, Box,
+  Puzzle, Key, BarChart3, LogOut, User,
 } from 'lucide-react'
 
 const userNavItems = [
   { label: 'Servers', url: '/dashboard', matchPrefix: '/dashboard', matchPrefixAlso: '/server', icon: <Server className="w-5 h-5 mt-0.5" /> },
-  { label: 'Credits', url: '/credits', matchPrefix: '/credits', icon: <Coins className="w-5 h-5 mt-0.5" /> },
 ]
 
 const adminNavItems = [
@@ -27,27 +26,17 @@ const adminNavItems = [
 ]
 
 export default function Sidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname() ?? ''
   const bgRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLUListElement>(null)
   const { user, loading, logout } = useAuth({ require: true })
   const [settings, setSettings] = useState<{ title?: string; logo?: string } | null>(null)
-  const [isDark, setIsDark] = useState(true)
 
   useEffect(() => {
     fetch('/api/public/settings')
       .then(r => r.json())
       .then(d => { if (d) setSettings(d) })
       .catch(() => {})
-  }, [])
-
-  useEffect(() => {
-    setIsDark(document.documentElement.classList.contains('dark'))
-    function onThemeChange(e: Event) {
-      setIsDark((e as CustomEvent).detail.theme === 'dark')
-    }
-    window.addEventListener('theme-changed', onThemeChange)
-    return () => window.removeEventListener('theme-changed', onThemeChange)
   }, [])
 
   useLayoutEffect(() => {
@@ -80,7 +69,7 @@ export default function Sidebar() {
       <div id="pc-sidebar" className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-56 lg:flex-col left-0">
         <div className="flex flex-col h-full bg-white/80 dark:bg-[#141414]/80 backdrop-blur-xl border-r border-neutral-200/30 dark:border-white/5">
 
-          <div className="pl-6 pt-4 pb-4 flex items-center justify-between min-w-0 shrink-0 pr-4">
+          <div className="pl-6 pt-4 pb-4 flex items-center min-w-0 shrink-0 pr-4">
             <Link href="/dashboard" className="flex items-center min-w-0">
               {settings?.logo ? (
                 <img src={settings.logo} alt="Logo"
@@ -95,18 +84,10 @@ export default function Sidebar() {
                 {settings?.title || 'Airlink'}
               </h1>
             </Link>
-
-            <button
-              onClick={() => { if (typeof window !== 'undefined' && window.toggleTheme) window.toggleTheme() }}
-              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-lg text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-white/5 transition"
-              title="Toggle theme"
-            >
-              {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
           </div>
 
           <Link href="/account"
-            className="flex items-center space-x-3 py-3 px-4 border-y border-neutral-800/10 dark:border-white/5 shrink-0 hover:bg-neutral-100 dark:hover:bg-white/[0.05] transition-colors group"
+            className="flex items-center space-x-3 py-3 px-4 border-y border-neutral-800/10 dark:border-white/5 shrink-0 hover:bg-neutral-100 dark:hover:bg-white/[0.05] transition-colors group active:scale-95 transition-transform duration-100"
             style={isActive('/account') ? { background: 'rgba(0,0,0,0.06)' } : {}}>
             <img className="h-8 w-8 rounded-xl border border-neutral-700/10 shrink-0 object-cover" src={avatarSrc} alt="Avatar" />
             <div className="min-w-0">
@@ -129,7 +110,7 @@ export default function Sidebar() {
                   {userNavItems.map(item => (
                     <li key={item.url} className="nav-item">
                       <Link href={item.url}
-                        className="nav-link mt-1 text-neutral-600 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white px-4 mx-4 group flex gap-x-3 py-1.5 rounded-xl text-sm leading-6 font-normal transition-all duration-200"
+                        className="nav-link mt-1 text-neutral-600 hover:text-neutral-950 dark:text-neutral-400 dark:hover:text-white px-4 mx-4 group flex gap-x-3 py-1.5 rounded-xl text-sm leading-6 font-normal transition-all duration-200 active:scale-95 transition-transform duration-100"
                         data-active={isActive(item.url, item.matchPrefix, item.matchPrefixAlso) ? 'true' : 'false'}>
                         {item.icon}
                         <span>{item.label}</span>
@@ -143,7 +124,7 @@ export default function Sidebar() {
                       {adminNavItems.map(item => (
                         <li key={item.url}>
                           <Link href={item.url}
-                            className="nav-link transition mt-1 text-neutral-600 dark:text-neutral-400 px-4 mx-4 group flex gap-x-3 py-1.5 rounded-xl text-sm leading-6 font-normal"
+                            className="nav-link transition mt-1 text-neutral-600 dark:text-neutral-400 px-4 mx-4 group flex gap-x-3 py-1.5 rounded-xl text-sm leading-6 font-normal active:scale-95 transition-transform duration-100"
                             data-active={isActive(item.url) ? 'true' : 'false'}>
                             {item.icon}
                             <span>{item.label}</span>
@@ -159,7 +140,7 @@ export default function Sidebar() {
 
           <div className="shrink-0 border-t border-neutral-800/10 dark:border-white/5">
             <button onClick={() => logout()}
-              className="group flex gap-x-3 pl-6 py-4 w-full text-left text-sm font-medium leading-6 text-neutral-500 hover:text-red-700 dark:hover:text-red-500/80 hover:bg-red-500/5 dark:hover:bg-neutral-700/10 transition-colors duration-300">
+              className="group flex gap-x-3 pl-6 py-4 w-full text-left text-sm font-medium leading-6 text-neutral-500 hover:text-red-700 dark:hover:text-red-500/80 hover:bg-red-500/5 dark:hover:bg-neutral-700/10 transition-colors duration-300 active:scale-95 transition-transform duration-100">
               <LogOut className="w-5 h-5 mt-0.5 shrink-0" />
               <span>Logout</span>
             </button>
@@ -173,16 +154,24 @@ export default function Sidebar() {
 
           <li className="flex-1">
             <Link href="/dashboard"
-              className={`mobile-nav-link flex flex-col items-center justify-center h-16 gap-1 ${isActive('/dashboard', '/dashboard', '/server') ? 'text-neutral-900 dark:text-white' : 'text-neutral-500 dark:text-neutral-400'}`}>
+              className={`mobile-nav-link flex flex-col items-center justify-center h-16 gap-1 active:scale-95 transition-transform duration-100 ${isActive('/dashboard', '/dashboard', '/server') ? 'text-neutral-900 dark:text-white' : 'text-neutral-500 dark:text-neutral-400'}`}>
               <Server className="w-5 h-5" />
               <span className="text-[10px] font-medium">Servers</span>
+            </Link>
+          </li>
+
+          <li className="flex-1">
+            <Link href="/account"
+              className={`mobile-nav-link flex flex-col items-center justify-center h-16 gap-1 active:scale-95 transition-transform duration-100 ${pathname === '/account' ? 'text-neutral-900 dark:text-white' : 'text-neutral-500 dark:text-neutral-400'}`}>
+              <User className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Account</span>
             </Link>
           </li>
 
           {user.isAdmin && (
             <li className="flex-1">
               <Link href="/admin/menu"
-                className={`mobile-nav-link flex flex-col items-center justify-center h-16 gap-1 ${pathname.startsWith('/admin') ? 'text-neutral-900 dark:text-white' : 'text-neutral-500 dark:text-neutral-400'}`}>
+                className={`mobile-nav-link flex flex-col items-center justify-center h-16 gap-1 active:scale-95 transition-transform duration-100 ${pathname.startsWith('/admin') ? 'text-neutral-900 dark:text-white' : 'text-neutral-500 dark:text-neutral-400'}`}>
                 <LayoutDashboard className="w-5 h-5" />
                 <span className="text-[10px] font-medium">Admin</span>
               </Link>
@@ -191,7 +180,7 @@ export default function Sidebar() {
 
           <li className="flex-1">
             <button onClick={() => logout()}
-              className="mobile-nav-link flex flex-col items-center justify-center w-full h-16 gap-1 text-neutral-500 dark:text-neutral-400">
+              className="mobile-nav-link flex flex-col items-center justify-center w-full h-16 gap-1 text-neutral-500 dark:text-neutral-400 active:scale-95 transition-transform duration-100">
               <LogOut className="w-5 h-5" />
               <span className="text-[10px] font-medium">Logout</span>
             </button>

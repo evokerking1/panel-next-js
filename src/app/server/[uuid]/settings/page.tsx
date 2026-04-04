@@ -1,16 +1,16 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
-import type { FormEvent, ReactNode } from 'react'
+import { use, useEffect, useState } from 'react'
+import type { FormEvent } from 'react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import InstallBanner from '@/components/server/InstallBanner'
+import Modal from '@/components/ui/Modal'
 import { normalizeHost } from '@/lib/network-address'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
-import Modal from '@/components/ui/Modal'
-import { Loader2, Eye, EyeOff } from 'lucide-react'
 
 interface ServerData {
   id: number
@@ -22,8 +22,6 @@ interface ServerData {
   Storage: number
   Ports: string
   Suspended: boolean
-  Installing: boolean
-  Queued: boolean
   node: { name: string; address: string; port: number }
   image: { name: string }
   owner: { username?: string; email: string }
@@ -35,21 +33,11 @@ interface SftpCredentials {
   host: string
 }
 
-function Section({ title, desc, children }: { title: string; desc?: string; children: ReactNode }) {
-  return (
-    <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 p-5 mb-5 hover:bg-neutral-100 dark:hover:bg-white/[0.06] transition-colors duration-150">
-      <h2 className="text-sm font-semibold mb-1 text-neutral-800 dark:text-white">{title}</h2>
-      {desc && <p className="text-xs text-neutral-500 mb-4">{desc}</p>}
-      {children}
-    </div>
-  )
-}
-
-function InfoRow({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs text-neutral-500 mb-0.5">{label}</p>
-      <p className="text-sm text-neutral-700 dark:text-neutral-300 font-mono">{value}</p>
+      <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">{label}</p>
+      <p className="mt-0.5 text-sm text-neutral-700 dark:text-neutral-300 break-all">{value}</p>
     </div>
   )
 }
@@ -65,8 +53,8 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [saving, setSaving] = useState(false)
-  const [deleteOpen, setDeleteOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [sftpCredentials, setSftpCredentials] = useState<SftpCredentials | null>(null)
   const [fetchingSftp, setFetchingSftp] = useState(false)
   const [showSftpPassword, setShowSftpPassword] = useState(false)
@@ -97,17 +85,18 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update-settings', name, description }),
       })
+      const data = await res.json().catch(() => ({}))
       if (res.ok) {
-        setServer(s => s ? { ...s, name, description } : s)
+        setServer(current => current ? { ...current, name, description } : current)
         showToast('Settings saved.', 'success')
       } else {
-        const d = await res.json()
-        showToast(d.error || 'Failed to save.', 'error')
+        showToast(data.error || 'Failed to save.', 'error')
       }
     } catch {
       showToast('Network error.', 'error')
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   async function deleteServer() {
@@ -119,7 +108,6 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
     } else {
       showToast('Failed to delete server.', 'error')
     }
-    setDeleteOpen(false)
   }
 
   async function getSftpCredentials() {
@@ -140,108 +128,173 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
     }
   }
 
-  const inputClass = "w-full rounded-xl text-sm px-4 py-2 bg-neutral-100 dark:bg-neutral-600/20 border border-neutral-200 dark:border-white/5 text-neutral-800 dark:text-white focus:border-neutral-400 dark:focus:border-neutral-600 outline-none transition"
-
-  if (loading) return (
-    <PanelLayout>
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />
-      </div>
-    </PanelLayout>
-  )
+  if (loading) {
+    return (
+      <PanelLayout>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-neutral-400" />
+        </div>
+      </PanelLayout>
+    )
+  }
 
   const primaryPort = (() => {
     try {
       const ports = JSON.parse(server?.Ports || '[]')
-      return ports.find((p: { primary: boolean }) => p.primary)?.Port
-    } catch { return undefined }
+      return ports.find((port: { primary: boolean }) => port.primary)?.Port
+    } catch {
+      return undefined
+    }
   })()
+
+  const inputClass = 'w-full rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-100 dark:bg-neutral-700/30 px-3 py-2 text-sm text-neutral-800 dark:text-white outline-none transition focus:ring-1 focus:ring-neutral-400'
 
   return (
     <PanelLayout>
       <FadeUp>
-      <div className="px-4 sm:px-8 pt-4 pb-2">
-        <p className="text-base font-medium text-neutral-800 dark:text-white">Settings</p>
-      </div>
+        <div className="px-4 sm:px-8 pt-4 pb-2">
+          <p className="text-base font-medium text-neutral-800 dark:text-white">Settings</p>
+        </div>
       </FadeUp>
       <ServerTabs uuid={uuid} features={features} />
       <FadeUp delay={0.06}>
-      <InstallBanner uuid={uuid} installing={installing} />
-      <div className="px-4 sm:px-8 mt-4 pb-8">
-        <form onSubmit={saveSettings}>
-          <Section title="General" desc="Basic server information.">
-            <div className="space-y-4">
+        <InstallBanner uuid={uuid} installing={installing} />
+        <div className="px-4 sm:px-8 mt-4 pb-8 space-y-4">
+          <section className="rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-50 p-4 dark:bg-neutral-800/20">
+            <h2 className="mb-1 text-sm font-medium text-neutral-800 dark:text-white">Server Settings</h2>
+            <p className="mb-4 text-xs text-neutral-500">Configure your server&apos;s basic settings.</p>
+            <form onSubmit={saveSettings} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Server Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} className={inputClass} required />
+                <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">Server Name</label>
+                <input
+                  type="text"
+                  required
+                  className={inputClass}
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                />
               </div>
               <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Description</label>
-                <input type="text" value={description} onChange={e => setDescription(e.target.value)} className={inputClass} placeholder="No description" />
+                <label className="mb-1.5 block text-xs font-medium text-neutral-600 dark:text-neutral-400">Description</label>
+                <input
+                  type="text"
+                  className={inputClass}
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={saving}
+                className="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-blue-500 disabled:opacity-60"
+              >
+                {saving ? 'Saving...' : 'Save Settings'}
+              </button>
+            </form>
+          </section>
+
+          <section className="rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-50 p-4 dark:bg-neutral-800/20">
+            <h2 className="mb-3 text-sm font-medium text-neutral-800 dark:text-white">Server Information</h2>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-3 md:grid-cols-3">
+              <Field label="Node" value={server?.node.name || 'Unknown'} />
+              <Field label="Image" value={server?.image.name || 'Unknown'} />
+              <Field label="Memory" value={`${server?.Memory ?? 0} MB`} />
+              <Field label="CPU" value={`${server?.Cpu ?? 0}%`} />
+              <Field label="Storage" value={`${server?.Storage ?? 0} GB`} />
+              <Field label="Status" value={server?.Suspended ? 'Suspended' : 'Active'} />
+              <Field label="Address" value={`${server ? normalizeHost(server.node.address) : 'Unknown'}:${primaryPort ?? '?'}`} />
+              <Field label="Owner" value={server?.owner.username || server?.owner.email || 'Unknown'} />
+              <div className="col-span-2 md:col-span-1">
+                <Field label="Server ID" value={server?.UUID || uuid} />
               </div>
             </div>
-            <button type="submit" disabled={saving}
-              className="mt-4 px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-50 transition">
-              {saving ? 'Saving...' : 'Save changes'}
-            </button>
-          </Section>
-        </form>
+          </section>
 
-        <Section title="Server Information" desc="Read-only details about this server.">
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-            <InfoRow label="UUID" value={uuid} />
-            <InfoRow label="Node" value={server?.node.name || '—'} />
-            <InfoRow label="Image" value={server?.image.name || '—'} />
-            <InfoRow label="Memory" value={`${server?.Memory ?? 0} MB`} />
-            <InfoRow label="CPU" value={`${server?.Cpu ?? 0}%`} />
-            <InfoRow label="Storage" value={`${server?.Storage ?? 0} GB`} />
-            <InfoRow label="Address" value={`${server ? normalizeHost(server.node.address) : '—'}:${primaryPort ?? '?'}`} />
-            <InfoRow label="Owner" value={server?.owner.username || server?.owner.email || '—'} />
-            <InfoRow label="Status" value={server?.Suspended ? 'Suspended' : 'Active'} />
-          </div>
-        </Section>
-
-        <Section title="SFTP Access" desc="Get temporary credentials to connect via SFTP.">
-          <button type="button" onClick={getSftpCredentials} disabled={fetchingSftp}
-            className="px-4 py-2 rounded-xl text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 hover:bg-neutral-700 dark:hover:bg-neutral-200 disabled:opacity-50 transition flex items-center gap-2">
-            {fetchingSftp && <Loader2 className="w-4 h-4 animate-spin" />}
-            {fetchingSftp ? 'Fetching...' : 'Get SFTP credentials'}
-          </button>
-          {sftpCredentials && (
-            <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <InfoRow label="Host" value={sftpCredentials.host} />
-              <InfoRow label="Username" value={sftpCredentials.username} />
+          <section className="rounded-xl border border-neutral-200 dark:border-white/5 bg-neutral-50 p-4 dark:bg-neutral-800/20">
+            <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-xs text-neutral-500 mb-0.5">Password</p>
-                <div className="flex items-center gap-2">
-                  <p className="text-sm text-neutral-700 dark:text-neutral-300 font-mono">{showSftpPassword ? sftpCredentials.password : '••••••••••••'}</p>
-                  <button type="button" onClick={() => setShowSftpPassword(v => !v)} className="text-xs text-neutral-500 hover:text-neutral-800 dark:hover:text-white inline-flex items-center gap-1">
-                    {showSftpPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    {showSftpPassword ? 'Hide' : 'Show'}
-                  </button>
+                <h2 className="text-sm font-medium text-neutral-800 dark:text-white">SFTP Access</h2>
+                <p className="text-xs text-neutral-500">Get temporary credentials to connect via SFTP.</p>
+              </div>
+              <button
+                type="button"
+                onClick={getSftpCredentials}
+                disabled={fetchingSftp}
+                className="rounded-xl bg-neutral-900 px-4 py-2 text-xs font-medium text-white transition hover:bg-neutral-800 disabled:opacity-60 dark:bg-white dark:text-neutral-900 dark:hover:bg-neutral-100"
+              >
+                {fetchingSftp ? 'Fetching...' : 'Get Credentials'}
+              </button>
+            </div>
+            {sftpCredentials && (
+              <div className="grid gap-3 sm:grid-cols-3">
+                <Field label="Host" value={sftpCredentials.host} />
+                <Field label="Username" value={sftpCredentials.username} />
+                <div>
+                  <p className="text-[10px] font-medium uppercase tracking-wide text-neutral-500">Password</p>
+                  <div className="mt-0.5 flex items-center gap-2">
+                    <p className="text-sm text-neutral-700 dark:text-neutral-300">
+                      {showSftpPassword ? sftpCredentials.password : '••••••••••••'}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowSftpPassword(current => !current)}
+                      className="inline-flex items-center gap-1 text-xs text-neutral-500 transition hover:text-neutral-800 dark:hover:text-white"
+                    >
+                      {showSftpPassword ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                      {showSftpPassword ? 'Hide' : 'Show'}
+                    </button>
+                  </div>
                 </div>
               </div>
+            )}
+          </section>
+
+          <section className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-800/20 dark:bg-red-950/20">
+            <h2 className="mb-3 text-sm font-medium text-red-700 dark:text-red-400">Danger Zone</h2>
+            <div className="space-y-3">
+              {user?.isAdmin && (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Delete Server</p>
+                      <p className="text-xs text-neutral-500">Permanently delete this server and all its data.</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeleteOpen(true)}
+                      className="shrink-0 rounded-xl bg-red-600 px-3 py-2 text-xs font-medium text-white transition hover:bg-red-500"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  <div className="h-px bg-red-200 dark:bg-red-800/30" />
+                </>
+              )}
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-neutral-700 dark:text-neutral-300">Reinstall Server</p>
+                  <p className="text-xs text-neutral-500">Reinstall from scratch. Backend support is not available in this app yet.</p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="shrink-0 rounded-xl bg-red-600 px-3 py-2 text-xs font-medium text-white opacity-50"
+                >
+                  Reinstall
+                </button>
+              </div>
             </div>
-          )}
-        </Section>
+          </section>
+        </div>
 
-        {user?.isAdmin && (
-          <div className="bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-900/30 p-5">
-            <h2 className="text-sm font-semibold mb-1 text-red-700 dark:text-red-300">Danger Zone</h2>
-            <p className="text-xs text-red-500 mb-4">Irreversible actions.</p>
-            <button type="button" onClick={() => setDeleteOpen(true)}
-              className="px-4 py-2 rounded-xl text-sm font-medium bg-red-600 hover:bg-red-500 text-white transition">
-              Delete Server
-            </button>
-          </div>
-        )}
-      </div>
-
-      <Modal open={deleteOpen} title="Delete server?"
-        body={`Permanently delete "${server?.name}"? The container will be removed from the node and all data lost.`}
-        confirmLabel="Delete" danger
-        onConfirm={deleteServer}
-        onClose={() => setDeleteOpen(false)} />
+        <Modal
+          open={deleteOpen}
+          title="Delete server?"
+          body={`Permanently delete "${server?.name}"? This cannot be undone.`}
+          confirmLabel="Delete Server"
+          onConfirm={deleteServer}
+          onClose={() => setDeleteOpen(false)}
+        />
       </FadeUp>
     </PanelLayout>
   )
