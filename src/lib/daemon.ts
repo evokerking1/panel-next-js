@@ -3,7 +3,7 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { URL } from 'url';
 import prisma from './prisma';
-import { normalizeHost } from './network-address';
+import { normalizeHost } from './server/network-address';
 
 const SIGNATURE_WINDOW_S = 30;
 

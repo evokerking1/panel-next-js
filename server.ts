@@ -5,8 +5,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { getIronSession } from 'iron-session';
 import { IncomingMessage, ServerResponse } from 'http';
 import { installDaemonRequestInterceptor, daemonScheme } from './src/lib/daemon';
-import { normalizeHost } from './src/lib/network-address';
-import { sessionOptions } from './src/lib/session-options';
+import { normalizeHost } from './src/lib/server/network-address';
+import { sessionOptions } from './src/lib/session/session-options';
 
 ensureEnvLoaded();
 installDaemonRequestInterceptor();
@@ -14,6 +14,51 @@ installDaemonRequestInterceptor();
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
+
+function color(code: number, text: string) {
+  return `\x1b[${code}m${text}\x1b[0m`;
+}
+
+function hexToAnsi(hex: string, text: string) {
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  return `\x1b[38;2;${r};${g};${b}m${text}\x1b[0m`;
+}
+
+function printStartupBanner(serverPort: number) {
+  const ascii = [
+    '                                              ',
+    '  /$$$$$$ /$$         /$$/$$         /$$      ',
+    ' /$$__  $|__/        | $|__/        | $$      ',
+    '| $$  \\ $$/$$ /$$$$$$| $$/$$/$$$$$$$| $$   /$$',
+    '| $$$$$$$| $$/$$__  $| $| $| $$__  $| $$  /$$/',
+    '| $$__  $| $| $$  \\__| $| $| $$  \\ $| $$$$$$/ ',
+    '| $$  | $| $| $$     | $| $| $$  | $| $$_  $$ ',
+    '| $$  | $| $| $$     | $| $| $$  | $| $$ \\  $$',
+    '|__/  |__|__|__/     |__|__|__/  |__|__/  \\__/',
+    '                                              ',
+  ];
+
+  const shades = ['#ffffff', '#f2f2f2', '#e8e8e8', '#dddddd', '#d2d2d2', '#c7c7c7', '#bcbcbc', '#b0b0b0', '#a4a4a4', '#9a9a9a'];
+  for (const [index, line] of ascii.entries()) {
+    console.log(hexToAnsi(shades[index] || '#ffffff', line));
+  }
+
+  const boxWidth = 55;
+  const border = color(90, `+${'-'.repeat(boxWidth)}+`);
+  const padLine = (text: string) => {
+    const padding = ' '.repeat(Math.max(0, boxWidth - text.length));
+    return `${color(92, '|')}${color(97, text)}${color(97, padding)}${color(92, '|')}`;
+  };
+
+  const publicHost = hostname === '0.0.0.0' ? 'localhost' : hostname;
+  console.log(border);
+  console.log(padLine(`Initializing ${dev ? 'development' : 'production'} panel server.`));
+  console.log(padLine(`Server running on http://${publicHost}:${serverPort}`));
+  console.log(border);
+}
 
 async function getSessionUser(req: IncomingMessage) {
   try {
@@ -189,7 +234,7 @@ async function startServer() {
   });
 
   httpServer.listen(port, hostname, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
+    printStartupBanner(port);
   });
 }
 

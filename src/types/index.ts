@@ -7,7 +7,7 @@ export interface ApiResponse<T = unknown> {
 
 export interface ServerPort {
   primary: boolean;
-  Port: number;
+  Port: number | string;
 }
 
 export interface ServerVariable {

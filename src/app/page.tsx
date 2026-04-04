@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation'
-import { getSession } from '@/lib/session'
+import { getSession } from '@/lib/session/index'
 import prisma from '@/lib/prisma'
 
 export default async function Root() {
