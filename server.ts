@@ -1,10 +1,11 @@
 import { createServer } from 'http';
-import { parse } from 'url';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
 import { getIronSession } from 'iron-session';
 import { IncomingMessage, ServerResponse } from 'http';
 import { installDaemonRequestInterceptor, daemonScheme } from './src/lib/daemon';
+import { normalizeHost } from './src/lib/network-address';
+import { getSessionSecret } from './src/lib/session-secret';
 
 installDaemonRequestInterceptor();
 
@@ -13,7 +14,7 @@ const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
 
 const sessionOptions = {
-  password: process.env.SESSION_SECRET || 'change-this-secret-to-something-32-chars-long',
+  password: getSessionSecret(),
   cookieName: 'airlink_session',
   cookieOptions: {
     secure: !dev,
@@ -120,7 +121,23 @@ async function startServer() {
   await app.prepare();
 
   const httpServer = createServer((req, res) => {
-    const parsedUrl = parse(req.url!, true);
+    const host = req.headers.host || `${hostname}:${port}`;
+    const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
+    const requestUrl = new URL(req.url || '/', `${protocol}://${host}`);
+    const parsedUrl = {
+      auth: '',
+      hash: requestUrl.hash,
+      host: requestUrl.host,
+      hostname: requestUrl.hostname,
+      href: requestUrl.href,
+      path: `${requestUrl.pathname}${requestUrl.search}`,
+      pathname: requestUrl.pathname,
+      port: requestUrl.port,
+      protocol: requestUrl.protocol,
+      query: Object.fromEntries(requestUrl.searchParams),
+      search: requestUrl.search,
+      slashes: true,
+    };
     handle(req, res, parsedUrl);
   });
 
@@ -169,15 +186,16 @@ async function startServer() {
 
         const httpScheme = await daemonScheme();
         const wsScheme = httpScheme === 'https' ? 'wss' : 'ws';
+        const nodeHost = normalizeHost(server.node.address);
 
         if (consoleMatch) {
-          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/container/${serverUUID}`;
+          const daemonWsUrl = `${wsScheme}://${nodeHost}:${server.node.port}/container/${serverUUID}`;
           await proxyConsole(clientWs, daemonWsUrl, server.node.key);
         } else if (eventsMatch) {
-          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/containerevents/${serverUUID}`;
+          const daemonWsUrl = `${wsScheme}://${nodeHost}:${server.node.port}/containerevents/${serverUUID}`;
           await proxyStatus(clientWs, daemonWsUrl, server.node.key);
         } else {
-          const daemonWsUrl = `${wsScheme}://${server.node.address}:${server.node.port}/containerstatus/${serverUUID}`;
+          const daemonWsUrl = `${wsScheme}://${nodeHost}:${server.node.port}/containerstatus/${serverUUID}`;
           await proxyStatus(clientWs, daemonWsUrl, server.node.key);
         }
       } catch (err) {

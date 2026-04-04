@@ -5,6 +5,7 @@ import type { FormEvent, ReactNode } from 'react'
 import PanelLayout from '@/components/layout/PanelLayout'
 import ServerTabs from '@/components/server/ServerTabs'
 import InstallBanner from '@/components/server/InstallBanner'
+import { normalizeHost } from '@/lib/network-address'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { useAuth } from '@/hooks/useAuth'
 import { FadeUp } from '@/components/ui/Animate'
@@ -194,7 +195,7 @@ export default function ServerSettingsPage({ params }: { params: Promise<{ uuid:
             <InfoRow label="Memory" value={`${server?.Memory ?? 0} MB`} />
             <InfoRow label="CPU" value={`${server?.Cpu ?? 0}%`} />
             <InfoRow label="Storage" value={`${server?.Storage ?? 0} GB`} />
-            <InfoRow label="Address" value={`${server?.node.address}:${primaryPort ?? '?'}`} />
+            <InfoRow label="Address" value={`${server ? normalizeHost(server.node.address) : '—'}:${primaryPort ?? '?'}`} />
             <InfoRow label="Owner" value={server?.owner.username || server?.owner.email || '—'} />
             <InfoRow label="Status" value={server?.Suspended ? 'Suspended' : 'Active'} />
           </div>

@@ -10,6 +10,7 @@ import InstallBanner from '@/components/server/InstallBanner'
 import { useAuth } from '@/hooks/useAuth'
 import { useToastContext } from '@/components/layout/PanelLayout'
 import { FadeUp } from '@/components/ui/Animate'
+import { normalizeHost } from '@/lib/network-address'
 import { Play, RotateCcw, Square, Copy, Loader2, Tag, Server, Hash, AlertTriangle, Check } from 'lucide-react'
 
 const LineChart = dynamic(
@@ -230,7 +231,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
   }, [uuid])
 
   useEffect(() => {
-    if (!termContainerRef.current) return
+    if (!server || !termContainerRef.current || termRef.current) return
 
     let disposed = false
     let term: import('@xterm/xterm').Terminal | null = null
@@ -278,12 +279,12 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       const fitAddon = new addonFit.FitAddon()
       term.loadAddon(fitAddon)
       term.open(termContainerRef.current)
+      termRef.current = term
+      setTerminalReady(true)
       requestAnimationFrame(() => {
         if (disposed) return
         try { fitAddon.fit() } catch {}
-        setTerminalReady(true)
       })
-      termRef.current = term
 
       for (const line of pendingConsoleLinesRef.current) {
         term.write(line)
@@ -334,7 +335,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       termRef.current = null
       setTerminalReady(false)
     }
-  }, [])
+  }, [server])
 
   const pollStats = useCallback(() => {
     fetch(`/api/server/${uuid}/stats`)
@@ -592,7 +593,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
     }
   })()
 
-  const serverIP = server ? `${server.node.address}:${primaryPort ?? '?'}` : '...'
+  const serverIP = server ? `${normalizeHost(server.node.address)}:${primaryPort ?? '?'}` : '...'
 
   const inputPlaceholder = (() => {
     if (status === 'stopped' || status === 'stopping') return 'Server is offline'

@@ -3,6 +3,7 @@ import axios from 'axios';
 import type { InternalAxiosRequestConfig } from 'axios';
 import { URL } from 'url';
 import prisma from './prisma';
+import { normalizeHost } from './network-address';
 
 const SIGNATURE_WINDOW_S = 30;
 
@@ -35,12 +36,12 @@ export function daemonSchemeSync(): 'http' | 'https' {
 }
 
 export function daemonUrlSync(address: string, port: number): string {
-  return `${daemonSchemeSync()}://${address}:${port}`;
+  return `${daemonSchemeSync()}://${normalizeHost(address)}:${port}`;
 }
 
 export async function buildDaemonUrl(address: string, port: number): Promise<string> {
   const scheme = await daemonScheme();
-  return `${scheme}://${address}:${port}`;
+  return `${scheme}://${normalizeHost(address)}:${port}`;
 }
 
 function hmacSign(key: string, method: string, path: string, body: string, timestamp: number): string {

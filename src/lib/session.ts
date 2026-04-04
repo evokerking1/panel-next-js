@@ -1,6 +1,7 @@
 import { getIronSession, IronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
+import { getSessionSecret } from './session-secret';
 
 export interface SessionUser {
   id: number;
@@ -17,14 +18,7 @@ export interface SessionData {
 
 const sessionPassword = (() => {
   if (typeof window !== 'undefined') return 'placeholder';
-
-  const secret = process.env.SESSION_SECRET;
-  const isProductionBuild = process.env.NEXT_PHASE === 'phase-production-build';
-  if (!secret && process.env.NODE_ENV === 'production' && !isProductionBuild) {
-    console.warn('[session] SESSION_SECRET is not set. Using insecure default — set this in production.');
-  }
-
-  return secret || 'change-this-secret-to-something-32-chars-long';
+  return getSessionSecret();
 })();
 
 const sessionOptions = {
