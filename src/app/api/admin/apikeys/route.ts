@@ -5,7 +5,8 @@ import { getSessionFromRequest } from '@/lib/session';
 
 function generateKey(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const bytes = crypto.randomBytes(length);
+  return Array.from(bytes, byte => chars[byte % chars.length]).join('');
 }
 
 function sha256(value: string): string {

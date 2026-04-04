@@ -30,6 +30,18 @@ function buildEnvVariables(variablesJson: string | null): Record<string, string>
   } catch { return {}; }
 }
 
+function resolveDockerImageValue(value: string | null | undefined): string {
+  if (!value) return '';
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return String(parsed[0] ?? '');
+    if (parsed && typeof parsed === 'object') {
+      return String(Object.values(parsed)[0] ?? '');
+    }
+  } catch {}
+  return value;
+}
+
 async function restartIfRunning(
   server: Awaited<ReturnType<typeof prisma.server.findUnique>> & {
     node: { address: string; port: number; key: string };
@@ -54,7 +66,7 @@ async function restartIfRunning(
     env['SERVER_CPU'] = String(server.Cpu);
     await axios.post(`${base}/container/start`, {
       id: server.UUID,
-      image: server.dockerImage,
+      image: resolveDockerImageValue(server.dockerImage),
       ports,
       Memory: server.Memory,
       Cpu: server.Cpu,
@@ -76,7 +88,12 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
   let dockerImages: Record<string, string>[] = [];
   try { dockerImages = JSON.parse(server.image?.dockerImages || '[]'); } catch {}
 
-  return NextResponse.json({ server, variables, dockerImages });
+  return NextResponse.json({
+    server,
+    variables,
+    dockerImages,
+    currentDockerImage: resolveDockerImageValue(server.dockerImage),
+  });
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
@@ -104,8 +121,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ uui
   }
 
   if (action === 'update-docker-image') {
-    const { dockerImage } = body;
-    await prisma.server.update({ where: { UUID: uuid }, data: { dockerImage } });
+    const selectedDockerImage = String(body.dockerImage ?? '').trim();
+    if (!selectedDockerImage) {
+      return NextResponse.json({ error: 'Docker image is required.' }, { status: 400 });
+    }
+
+    let dockerImages: Record<string, string>[] = [];
+    try {
+      dockerImages = JSON.parse(server.image?.dockerImages || '[]');
+    } catch {}
+
+    const matchedImage = dockerImages.find(entry =>
+      Object.values(entry).some(value => String(value) === selectedDockerImage),
+    );
+
+    if (!matchedImage) {
+      return NextResponse.json({ error: 'Selected Docker image is invalid.' }, { status: 400 });
+    }
+
+    await prisma.server.update({
+      where: { UUID: uuid },
+      data: { dockerImage: JSON.stringify(matchedImage) },
+    });
     return NextResponse.json({ success: true });
   }
 

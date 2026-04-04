@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
+import crypto from 'crypto';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session';
 import { checkNodeOnline } from '@/lib/daemon';
 
 function generateKey(length: number): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  const bytes = crypto.randomBytes(length);
+  return Array.from(bytes, byte => chars[byte % chars.length]).join('');
 }
 
 async function requireAdmin(req: NextRequest) {

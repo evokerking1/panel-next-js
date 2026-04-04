@@ -30,7 +30,6 @@ interface ServerData {
   description?: string
   StartCommand: string
   allowStartupEdit: boolean
-  dockerImage?: string
 }
 
 function RenderedCommand({ command, vars }: { command: string; vars: ServerVariable[] }) {
@@ -81,7 +80,7 @@ function StartupInner({ uuid }: { uuid: string }) {
         if (d.server) {
           setServer(d.server)
           setStartCmd(d.server.StartCommand || '')
-          setSelectedImage(d.server.dockerImage || '')
+          setSelectedImage(d.currentDockerImage || '')
         }
         if (d.variables) setVars(d.variables)
         if (d.dockerImages) setDockerImages(d.dockerImages)

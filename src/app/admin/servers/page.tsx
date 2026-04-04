@@ -61,7 +61,7 @@ export default function AdminServersPage() {
 
   async function handleDelete() {
     if (!deleteTarget) return
-    const res = await fetch(`/api/admin/servers/${deleteTarget.UUID}`, { method: 'DELETE' })
+    const res = await fetch(`/api/admin/servers/${deleteTarget.id}`, { method: 'DELETE' })
     if (res.ok) {
       setServers(prev => prev.filter(s => s.UUID !== deleteTarget.UUID))
       showToast('Server deleted.', 'success')
@@ -75,8 +75,9 @@ export default function AdminServersPage() {
     if (selected.size === 0) return
     const confirmed = window.confirm(`Delete ${selected.size} server(s)? This cannot be undone.`)
     if (!confirmed) return
-    for (const uuid of selected) {
-      await fetch(`/api/admin/servers/${uuid}`, { method: 'DELETE' }).catch(() => {})
+    for (const server of servers) {
+      if (!selected.has(server.UUID)) continue
+      await fetch(`/api/admin/servers/${server.id}`, { method: 'DELETE' }).catch(() => {})
     }
     setServers(prev => prev.filter(s => !selected.has(s.UUID)))
     setSelected(new Set())
@@ -177,7 +178,7 @@ export default function AdminServersPage() {
                       </td>
                       <td className="py-4 pl-3 pr-4 text-right text-sm sm:pr-6">
                         <div className="flex items-center justify-end gap-2">
-                          <Link href={`/admin/servers/edit/${server.UUID}`}
+                          <Link href={`/admin/servers/edit/${server.id}`}
                             className="p-1.5 rounded-lg hover:bg-neutral-100 dark:hover:bg-neutral-700 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 transition">
                             <Pencil className="w-4 h-4" />
                           </Link>

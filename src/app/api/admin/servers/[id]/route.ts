@@ -11,15 +11,22 @@ async function requireAdmin(req: NextRequest) {
   return session.user;
 }
 
+async function findServer(idOrUuid: string) {
+  const numericId = Number.parseInt(idOrUuid, 10);
+  return prisma.server.findFirst({
+    where: Number.isNaN(numericId)
+      ? { UUID: idOrUuid }
+      : { OR: [{ id: numericId }, { UUID: idOrUuid }] },
+    include: { node: true, image: true, owner: true },
+  });
+}
+
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireAdmin(req);
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const server = await prisma.server.findUnique({
-    where: { id: parseInt(id) },
-    include: { node: true, image: true, owner: true },
-  });
+  const server = await findServer(id);
   if (!server) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 
   return NextResponse.json({ server });
@@ -37,14 +44,14 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: 'Missing required fields.' }, { status: 400 });
   }
 
-  const server = await prisma.server.findUnique({ where: { id: parseInt(id) }, include: { node: true, image: true } });
+  const server = await findServer(id);
   if (!server) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 
   const newSuspended = Suspended === true || Suspended === 'true';
   const suspensionChanged = server.Suspended !== newSuspended;
 
   await prisma.server.update({
-    where: { id: parseInt(id) },
+    where: { id: server.id },
     data: {
       name,
       description: description || '',
@@ -79,7 +86,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { id } = await params;
-  const server = await prisma.server.findUnique({ where: { id: parseInt(id) }, include: { node: true, image: true } });
+  const server = await findServer(id);
   if (!server) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 
   try {
@@ -94,7 +101,7 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ i
     prisma.backup.deleteMany({ where: { serverId: server.UUID } }),
     prisma.sftpCredential.deleteMany({ where: { serverId: server.UUID } }),
     prisma.serverFolderMember.deleteMany({ where: { serverUUID: server.UUID } }),
-    prisma.server.delete({ where: { id: parseInt(id) } }),
+    prisma.server.delete({ where: { id: server.id } }),
   ]);
   return NextResponse.json({ success: true });
 }
