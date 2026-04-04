@@ -69,18 +69,6 @@ async function readWsText(data: string | Blob | ArrayBuffer): Promise<string> {
   return ''
 }
 
-function isDaemonInfraError(text: string): boolean {
-  return (
-    text.includes('Failed to attach to container') ||
-    text.includes('no such container') ||
-    text.includes('No such container') ||
-    text.includes('container not available') ||
-    text.includes('Attach failed') ||
-    text.includes('HTTP code 404') ||
-    text.includes('HTTP code 500')
-  )
-}
-
 const ANSI_RE = /\x1b(?:\[[0-9;]*[A-Za-z]|\][^\x07\x1b]*(?:\x07|\x1b\\)|[@-Z\\-_]|[\u0080-\u009F])/g
 const PROMPT_RE = /(?:[a-zA-Z0-9_-]+)@[^\s:#\])\r\n]+(?:[^$#\r\n]*?)[$#]\s*/g
 
@@ -292,7 +280,7 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
       term.open(termContainerRef.current)
       requestAnimationFrame(() => {
         if (disposed) return
-        fitAddon.fit()
+        try { fitAddon.fit() } catch {}
         setTerminalReady(true)
       })
       termRef.current = term
@@ -472,13 +460,13 @@ export default function ServerConsolePage({ params }: { params: Promise<{ uuid: 
         }
 
         if (!raw) return
-        if (isDaemonInfraError(raw)) return
         if (raw.includes('airlinkd server appears to be down')) {
           setDaemonOffline(true)
           ws.close()
           return
         }
         if (raw.includes('Working on')) {
+          // installation in progress - daemon will close the socket; clear output and let reconnect handle it
           termRef.current?.clear()
           ws.close()
           return

@@ -41,12 +41,14 @@ async function proxyConsole(
   nodeKey: string,
 ) {
   const daemonWs = new WebSocket(daemonWsUrl);
+  let receivedData = false;
 
   daemonWs.on('open', () => {
     daemonWs.send(JSON.stringify({ event: 'auth', args: [nodeKey] }));
   });
 
   daemonWs.on('message', (data, isBinary) => {
+    receivedData = true;
     if (clientWs.readyState === WebSocket.OPEN) {
       clientWs.send(isBinary ? data : data.toString());
     }
@@ -59,7 +61,17 @@ async function proxyConsole(
   });
 
   daemonWs.on('close', () => {
-    if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+    if (clientWs.readyState !== WebSocket.OPEN) return;
+
+    clientWs.send(
+      receivedData
+        ? '\x1b[90mContainer stream ended. Reconnecting...\x1b[0m\r\n'
+        : '\x1b[90mWaiting for container...\x1b[0m\r\n',
+    );
+
+    setTimeout(() => {
+      if (clientWs.readyState === WebSocket.OPEN) clientWs.close();
+    }, 1500);
   });
 
   clientWs.on('message', (data, isBinary) => {
