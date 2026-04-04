@@ -62,7 +62,7 @@ function Row({ label, desc, children }: { label: string; desc?: string; children
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white dark:bg-white/5 rounded-xl border border-neutral-200 dark:border-white/5 shadow-sm dark:shadow-none overflow-hidden">
+    <div className="panel-card">
       <h2 className="text-[13px] font-medium text-neutral-800 dark:text-white px-5 py-3.5 bg-neutral-50 dark:bg-white/5 border-b border-neutral-200 dark:border-white/5">{title}</h2>
       <div className="px-5 py-5 space-y-4">{children}</div>
     </div>
@@ -173,13 +173,13 @@ export default function AdminSettingsPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 overflow-y-auto pb-12">
-        <div className="px-4 pt-5 sm:px-8">
-          <h1 className="text-base font-medium text-neutral-800 dark:text-white">Settings</h1>
-          <p className="mt-0.5 text-sm text-neutral-500">Manage your panel configuration.</p>
+      <div className="panel-page panel-page-shell panel-stack">
+        <div className="panel-page-heading">
+          <h1 className="panel-page-title">Settings</h1>
+          <p className="panel-page-subtitle">Manage your panel configuration.</p>
         </div>
 
-        <div className="mt-5 px-4 sm:px-8">
+        <div className="panel-stack">
           <div className="mb-6 flex gap-0.5 overflow-x-auto border-b border-neutral-200 dark:border-neutral-700/40">
             {tabs.map(t => (
               <button key={t.key} type="button" onClick={() => changeTab(t.key)}
@@ -200,7 +200,8 @@ export default function AdminSettingsPage() {
           ) : (
             <>
               {tab === 'appearance' && (
-                <div className="space-y-5 max-w-3xl">
+                <div className="animate-fade-in-up panel-grid-wide items-start">
+                  <div className="panel-stack">
                   <Card title="Branding">
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
                       <div>
@@ -231,7 +232,9 @@ export default function AdminSettingsPage() {
                       <Toggle checked={!!settings.allowRegistration} onChange={v => set('allowRegistration', v)} />
                     </Row>
                   </Card>
+                  </div>
 
+                  <div className="panel-stack">
                   <Card title="Authentication">
                     <div>
                       <label className="block text-sm font-medium text-neutral-700 dark:text-white mb-2">Login wallpaper URL</label>
@@ -264,11 +267,13 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   </Card>
+                  </div>
                 </div>
               )}
 
               {tab === 'servers' && (
-                <div className="space-y-5 max-w-2xl">
+                <div className="animate-fade-in-up panel-grid-wide items-start">
+                  <div className="panel-stack">
                   <Card title="Server Creation">
                     <Row label="Allow user server creation" desc="When enabled, users can create their own servers.">
                       <Toggle checked={!!settings.allowUserCreateServer} onChange={v => set('allowUserCreateServer', v)} />
@@ -302,17 +307,21 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   </Card>
+                  </div>
 
+                  <div className="panel-stack">
                   <Card title="Daemon">
                     <Row label="Enforce HTTPS for daemon" desc="Use HTTPS when communicating with daemon nodes.">
                       <Toggle checked={!!settings.enforceDaemonHttps} onChange={v => set('enforceDaemonHttps', v)} />
                     </Row>
                   </Card>
+                  </div>
                 </div>
               )}
 
               {tab === 'security' && (
-                <div className="space-y-5 max-w-2xl">
+                <div className="animate-fade-in-up panel-grid-wide items-start">
+                  <div className="panel-stack">
                   <Card title="Rate Limiting">
                     <Row label="Enable rate limiting" desc="Block IPs that exceed the request threshold.">
                       <Toggle checked={!!settings.rateLimitEnabled} onChange={v => set('rateLimitEnabled', v)} />
@@ -349,7 +358,9 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   </Card>
+                  </div>
 
+                  <div className="panel-stack">
                   <Card title="Advanced">
                     <Row label="Behind reverse proxy" desc="Trust X-Forwarded-For headers for real IP detection.">
                       <Toggle checked={!!settings.behindReverseProxy} onChange={v => set('behindReverseProxy', v)} />
@@ -359,7 +370,7 @@ export default function AdminSettingsPage() {
                     </Row>
                   </Card>
 
-                  <div className="bg-neutral-50 dark:bg-white/[0.03] rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
+                  <div className="panel-card overflow-hidden">
                     <div className="px-5 py-4 border-b border-neutral-200 dark:border-white/5">
                       <h2 className="text-sm font-medium text-neutral-800 dark:text-white">Banned IPs</h2>
                       <p className="mt-0.5 text-xs text-neutral-500">IPs on this list are blocked from accessing the panel entirely.</p>
@@ -389,6 +400,7 @@ export default function AdminSettingsPage() {
                         <p className="text-xs text-neutral-400">No IPs are currently banned.</p>
                       )}
                     </div>
+                  </div>
                   </div>
 
                   <div className="mt-6">

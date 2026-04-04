@@ -248,6 +248,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
   const [loading, setLoading] = useState(true)
   const [editFile, setEditFile] = useState<{ path: string; content: string } | null>(null)
   const [editorLoading, setEditorLoading] = useState(false)
+  const [editorClosing, setEditorClosing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<FileEntry | null>(null)
   const [newFolderOpen, setNewFolderOpen] = useState(false)
@@ -262,6 +263,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
   const [menuTarget, setMenuTarget] = useState<string | null>(null)
   const uploadRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement | null>(null)
+  const closeTimerRef = useRef<number | null>(null)
 
   useEffect(() => {
     fetch(`/api/server/${uuid}`)
@@ -293,6 +295,14 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
     return () => {
       document.removeEventListener('mousedown', handlePointerDown)
       document.removeEventListener('keydown', handleEscape)
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current)
+      }
     }
   }, [])
 
@@ -342,6 +352,11 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
 
   function openTextEditor(name: string) {
     const filePath = fullPath(name)
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+    setEditorClosing(false)
     setEditorLoading(true)
     setEditFile(current => current?.path === filePath ? current : { path: filePath, content: '' })
     fetch(`/api/server/${uuid}/files?action=read&filePath=${encodeURIComponent(filePath)}`)
@@ -356,6 +371,18 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       })
       .catch(() => showToast('Failed to open file.', 'error'))
       .finally(() => setEditorLoading(false))
+  }
+
+  function closeEditor() {
+    if (!editFile || editorClosing) return
+    setEditorClosing(true)
+    closeTimerRef.current = window.setTimeout(() => {
+      setEditFile(null)
+      setSavedContent('')
+      setEditorLoading(false)
+      setEditorClosing(false)
+      closeTimerRef.current = null
+    }, 180)
   }
 
   async function openImagePreview(name: string) {
@@ -564,6 +591,10 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
     }
   }
 
+  function menuPositionClass(index: number) {
+    return index >= files.length - 2 ? 'bottom-12' : 'top-12'
+  }
+
   return (
     <PanelLayout>
       <div className="animate-fade-in-up px-4 py-5 lg:px-8 lg:pt-4">
@@ -618,7 +649,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
               </div>
             </div>
 
-            <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-hidden">
+            <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-visible">
               {loading ? (
                 <div className="p-4 space-y-3">
                   {[0, 1, 2, 3].map(index => (
@@ -678,7 +709,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
                                 <MoreHorizontal className="w-4 h-4" />
                               </button>
                               {menuTarget === file.name && (
-                                <div ref={menuRef} className="absolute right-3 top-12 z-[140] w-44 rounded-xl border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-700/60 dark:bg-neutral-800">
+                                <div ref={menuRef} className={`absolute right-3 ${menuPositionClass(index)} z-[400] w-44 rounded-xl border border-neutral-200 bg-white p-1 shadow-2xl dark:border-neutral-700/60 dark:bg-neutral-900`}>
                                   {file.type === 'file' && !isImageFile(file.name) && (
                                     <button onClick={() => { openTextEditor(file.name); setMenuTarget(null) }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-white/5">
                                       <Pencil className="w-3.5 h-3.5" />
@@ -743,7 +774,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
                           </button>
                         </div>
                         {menuTarget === file.name && (
-                          <div ref={menuRef} className="absolute right-3 top-12 z-[140] w-44 rounded-xl border border-neutral-200 bg-white p-1 shadow-xl dark:border-neutral-700/60 dark:bg-neutral-800">
+                          <div ref={menuRef} className={`absolute right-3 ${menuPositionClass(index)} z-[400] w-44 rounded-xl border border-neutral-200 bg-white p-1 shadow-2xl dark:border-neutral-700/60 dark:bg-neutral-900`}>
                             {file.type === 'file' && !isImageFile(file.name) && (
                               <button onClick={() => { openTextEditor(file.name); setMenuTarget(null) }} className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-50 dark:text-neutral-300 dark:hover:bg-white/5">
                                 <Pencil className="w-3.5 h-3.5" />
@@ -788,7 +819,7 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
       </div>
 
       {editFile && (
-        <div className="panel-overlay-frame z-[90] animate-fade-in bg-neutral-100/90 p-3 backdrop-blur dark:bg-neutral-950/90 lg:p-6">
+        <div className={`panel-overlay-frame z-[260] bg-neutral-100/90 p-3 backdrop-blur dark:bg-neutral-950/90 lg:p-6 ${editorClosing ? 'animate-fade-out pointer-events-none' : 'animate-fade-in'}`}>
           <div className="mx-auto flex h-full w-full max-w-[1800px] min-w-0 flex-col">
             <div className="mb-3 flex items-center justify-end gap-3 rounded-xl border border-neutral-200 bg-white/80 px-4 py-2.5 text-xs text-neutral-500 shadow-sm dark:border-white/5 dark:bg-neutral-900/60 dark:text-neutral-400">
               {editorLoading && (
@@ -799,20 +830,18 @@ export default function ServerFilesPage({ params }: { params: Promise<{ uuid: st
               )}
             </div>
             <div className="min-h-0 flex-1">
-              <EditorPane
-                editFile={editFile}
-                saving={saving}
-                dirty={isDirty}
-                loading={editorLoading}
-                fullScreen
-                onBack={() => {
-                  setEditFile(null)
-                  setSavedContent('')
-                  setEditorLoading(false)
-                }}
-                onSave={saveFile}
-                onChange={(value) => setEditFile(current => current ? { ...current, content: value } : current)}
-              />
+              <div className={editorClosing ? 'animate-modal-out' : 'animate-modal-in'}>
+                <EditorPane
+                  editFile={editFile}
+                  saving={saving}
+                  dirty={isDirty}
+                  loading={editorLoading}
+                  fullScreen
+                  onBack={closeEditor}
+                  onSave={saveFile}
+                  onChange={(value) => setEditFile(current => current ? { ...current, content: value } : current)}
+                />
+              </div>
             </div>
           </div>
         </div>

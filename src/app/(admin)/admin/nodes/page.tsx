@@ -65,11 +65,11 @@ export default function AdminNodesPage() {
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 pt-5 pb-8">
-        <div className="mb-5 flex items-start justify-between">
-          <div>
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Nodes</h1>
-            <p className="mt-0.5 text-xs text-neutral-500">Manage daemon nodes and view their status.</p>
+      <div className="panel-page panel-page-shell panel-stack">
+        <div className="panel-toolbar">
+          <div className="panel-page-heading">
+            <h1 className="panel-page-title">Nodes</h1>
+            <p className="panel-page-subtitle">Manage daemon nodes and view their status.</p>
           </div>
           <Link
             href="/admin/nodes/create"
@@ -81,16 +81,21 @@ export default function AdminNodesPage() {
         </div>
 
         <FadeUp delay={0.04}>
-          <div className="mb-5 grid grid-cols-2 gap-3">
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-white/5 dark:bg-neutral-800/20">
+          <div className="panel-stat-grid">
+            <div className="panel-stat-card">
               <p className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Total Nodes</p>
               <p className="text-2xl font-semibold text-neutral-800 dark:text-white">{nodes.length}</p>
               <p className="mt-1 text-xs text-neutral-500">{nodes.length > 0 ? `${onlineCount} online` : 'No nodes available'}</p>
             </div>
-            <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-white/5 dark:bg-neutral-800/20">
+            <div className="panel-stat-card">
               <p className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Servers</p>
               <p className="text-2xl font-semibold text-neutral-800 dark:text-white">{totalInstances}</p>
               <p className="mt-1 text-xs text-neutral-500">across all nodes</p>
+            </div>
+            <div className="panel-stat-card">
+              <p className="mb-1 text-[10px] uppercase tracking-wider text-neutral-500">Offline Nodes</p>
+              <p className="text-2xl font-semibold text-neutral-800 dark:text-white">{nodes.length - onlineCount}</p>
+              <p className="mt-1 text-xs text-neutral-500">need attention</p>
             </div>
           </div>
         </FadeUp>
@@ -126,16 +131,92 @@ export default function AdminNodesPage() {
               </Link>
             </div>
           ) : (
-            <div className="space-y-2">
+            <>
+              <div className="hidden xl:block panel-table-shell overflow-x-auto">
+                <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/5">
+                  <thead className="bg-neutral-50 dark:bg-neutral-800/20">
+                    <tr>
+                      {['Node', 'Version', 'Resources', 'Instances', 'Actions'].map(label => (
+                        <th key={label} className="px-4 py-3 text-left text-xs font-medium text-neutral-500">{label}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-neutral-100 bg-white dark:divide-white/5 dark:bg-transparent">
+                    {nodes.map(node => (
+                      <tr key={node.id} className="hover:bg-neutral-50 dark:hover:bg-white/[0.03]">
+                        <td className="px-4 py-3">
+                          <div className="flex items-start gap-3">
+                            <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-700/40 dark:bg-neutral-800">
+                              <span className={`inline-flex h-2 w-2 rounded-full ${node.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                            </div>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium text-neutral-800 dark:text-white">{node.name}</p>
+                              <p className="truncate font-mono text-xs text-neutral-500">{node.address}:{node.port}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-xs">
+                          <span className={`inline-flex rounded-md border px-2 py-1 font-medium ${
+                            node.versionRelease
+                              ? 'border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-400'
+                              : 'border-red-200 bg-red-50 text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400'
+                          }`}>
+                            {node.versionRelease || 'unknown'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-xs text-neutral-600 dark:text-neutral-300">
+                          {node.ram} MB
+                          <span className="mx-2 text-neutral-300 dark:text-neutral-600">·</span>
+                          {node.cpu}%
+                          <span className="mx-2 text-neutral-300 dark:text-neutral-600">·</span>
+                          {node.disk} GB
+                        </td>
+                        <td className="px-4 py-3 text-sm text-neutral-600 dark:text-neutral-300">
+                          {node.instances?.length ?? 0}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => fetchConfigure(node)}
+                              className="rounded-lg border border-neutral-200 bg-neutral-100 px-2.5 py-1.5 text-xs font-medium text-neutral-700 transition hover:bg-neutral-200 dark:border-neutral-700/40 dark:bg-neutral-800 dark:text-neutral-300 dark:hover:bg-neutral-700"
+                            >
+                              Configure
+                            </button>
+                            <Link
+                              href={`/admin/nodes/${node.id}`}
+                              className="rounded-lg bg-blue-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-blue-500"
+                            >
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              onClick={() => setDeleteTarget(node)}
+                              className="rounded-lg bg-red-600 px-2.5 py-1.5 text-xs font-medium text-white transition hover:bg-red-500"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="grid gap-3 xl:hidden">
               {nodes.map(node => (
                 <div key={node.id} className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3 dark:border-white/5 dark:bg-neutral-800/20">
-                  <div className="mb-3 flex items-center gap-3">
+                  <div className="mb-3 flex items-start gap-3">
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 dark:border-neutral-700/40 dark:bg-neutral-800">
                       <span className={`relative inline-flex h-2 w-2 rounded-full ${node.online ? 'bg-emerald-500' : 'bg-red-500'}`} />
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-neutral-800 dark:text-white">{node.name}</p>
                       <p className="truncate font-mono text-xs text-neutral-500">{node.address}:{node.port}</p>
+                      <p className="mt-1 text-[11px] text-neutral-500">
+                        {node.instances?.length ?? 0} instance{(node.instances?.length ?? 0) === 1 ? '' : 's'}
+                      </p>
                     </div>
                     <span className={`shrink-0 rounded-md border px-2 py-0.5 text-[10px] font-medium ${
                       node.versionRelease
@@ -145,7 +226,7 @@ export default function AdminNodesPage() {
                       {node.versionRelease || 'unknown'}
                     </span>
                   </div>
-                  <div className="mb-3 grid grid-cols-3 gap-3 text-[11px] text-neutral-500">
+                  <div className="mb-3 grid grid-cols-1 gap-2 text-[11px] text-neutral-500 sm:grid-cols-3">
                     <div>
                       <p className="uppercase tracking-wide">RAM</p>
                       <p className="mt-0.5 text-sm text-neutral-700 dark:text-neutral-300">{node.ram} MB</p>
@@ -159,11 +240,8 @@ export default function AdminNodesPage() {
                       <p className="mt-0.5 text-sm text-neutral-700 dark:text-neutral-300">{node.disk} GB</p>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-xs text-neutral-500">
-                      {node.instances?.length ?? 0} instance{(node.instances?.length ?? 0) === 1 ? '' : 's'}
-                    </p>
-                    <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <div className="flex flex-wrap gap-2">
                       <button
                         type="button"
                         onClick={() => fetchConfigure(node)}
@@ -188,7 +266,8 @@ export default function AdminNodesPage() {
                   </div>
                 </div>
               ))}
-            </div>
+              </div>
+            </>
           )}
         </FadeUp>
 

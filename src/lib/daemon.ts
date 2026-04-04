@@ -150,4 +150,24 @@ export async function daemonInstallState(
   }
 }
 
+export function getDaemonErrorMessage(error: unknown, fallback = 'Daemon request failed'): string {
+  if (!axios.isAxiosError(error)) {
+    return fallback;
+  }
+
+  const data = error.response?.data;
+  if (typeof data === 'string' && data.trim()) {
+    return data;
+  }
+
+  if (data && typeof data === 'object') {
+    const message = (data as { error?: unknown; message?: unknown }).error ?? (data as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) {
+      return message;
+    }
+  }
+
+  return error.message || fallback;
+}
+
 export { SIGNATURE_WINDOW_S };

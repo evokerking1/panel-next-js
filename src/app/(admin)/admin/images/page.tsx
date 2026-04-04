@@ -102,14 +102,14 @@ export default function AdminImagesPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="panel-page panel-page-shell panel-stack">
 
-        <div className="sm:flex sm:items-center px-8 pt-4 gap-4">
-          <div className="sm:flex-auto">
-            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Images</h1>
-            <p className="mt-1 text-sm text-neutral-500">Manage server images installed on this panel</p>
+        <div className="panel-toolbar">
+          <div className="panel-page-heading">
+            <h1 className="panel-page-title">Images</h1>
+            <p className="panel-page-subtitle">Manage server images installed on this panel</p>
           </div>
-          <div className="mt-4 sm:mt-0 flex gap-2 flex-wrap">
+          <div className="panel-toolbar-actions">
             <input ref={fileRef} type="file" accept=".json" className="hidden"
               onChange={e => { if (e.target.files?.[0]) handleUpload(e.target.files[0]) }} />
             <button
@@ -129,7 +129,7 @@ export default function AdminImagesPage() {
           </div>
         </div>
 
-        <div className="mx-8 mt-6 flex items-center gap-4 border-b border-neutral-200 dark:border-neutral-800">
+        <div className="flex items-center gap-4 border-b border-neutral-200 dark:border-neutral-800">
           <span className="px-1 py-2.5 text-sm font-medium text-neutral-800 dark:text-white border-b-2 border-neutral-800 dark:border-white -mb-px">
             Installed <span className="ml-1 text-xs text-neutral-400">{images.length}</span>
           </span>
@@ -140,7 +140,7 @@ export default function AdminImagesPage() {
         </div>
 
         {images.length > 0 && (
-          <div className="mx-8 mt-4">
+          <div>
             <input
               type="text"
               placeholder="Filter images…"
@@ -175,7 +175,7 @@ export default function AdminImagesPage() {
         ) : (
           <>
             {/* Desktop table */}
-            <div className="hidden sm:block overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40">
+            <div className="hidden sm:block panel-table-shell overflow-x-auto shadow-sm">
               <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/10">
                 <thead className="bg-neutral-50 dark:bg-neutral-800/50">
                   <tr>
@@ -219,7 +219,7 @@ export default function AdminImagesPage() {
             </div>
 
             {/* Mobile cards */}
-            <div className="sm:hidden px-4 mt-4 space-y-2">
+            <div className="sm:hidden space-y-2">
               {filtered.map(img => {
                 let dockerList: string[] = []
                 try { dockerList = img.dockerImages ? JSON.parse(img.dockerImages) : [] } catch {}

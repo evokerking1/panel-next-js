@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session/index';
-import { buildDaemonUrl, daemonGet, daemonInstallState, daemonPost } from '@/lib/daemon';
-import { getPrimaryPortFromJson } from '@/lib/server/server-ports';
+import { buildDaemonUrl, daemonGet, daemonInstallState, daemonPost, getDaemonErrorMessage } from '@/lib/daemon';
+import { getPrimaryPortBindingFromJson, getPrimaryPortFromJson } from '@/lib/server/server-ports';
 import axios from 'axios';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
@@ -112,100 +112,98 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ uuid
 
 // POST /api/server/[uuid] — power actions
 export async function POST(req: NextRequest, { params }: { params: Promise<{ uuid: string }> }) {
-  const { uuid } = await params;
-  const result = await getServerAndUser(req, uuid);
-  if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
+  try {
+    const { uuid } = await params;
+    const result = await getServerAndUser(req, uuid);
+    if ('error' in result) return NextResponse.json({ error: result.error }, { status: result.status });
 
-  const { server } = result;
-  const body = await req.json().catch(() => ({}));
-  const { action, command } = body;
+    const { server } = result;
+    const body = await req.json().catch(() => ({}));
+    const { action, command } = body;
 
-  if (action === 'update-settings') {
-    const { name: newName, description: newDesc } = body;
-    if (!newName?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
-    await prisma.server.update({
-      where: { UUID: uuid },
-      data: {
-        name: String(newName).trim().slice(0, 64),
-        description: newDesc ? String(newDesc).trim().slice(0, 128) || null : null,
-      },
-    });
-    return NextResponse.json({ success: true });
-  }
+    if (action === 'update-settings') {
+      const { name: newName, description: newDesc } = body;
+      if (!newName?.trim()) return NextResponse.json({ error: 'Name is required.' }, { status: 400 });
+      await prisma.server.update({
+        where: { UUID: uuid },
+        data: {
+          name: String(newName).trim().slice(0, 64),
+          description: newDesc ? String(newDesc).trim().slice(0, 128) || null : null,
+        },
+      });
+      return NextResponse.json({ success: true });
+    }
 
-  if (action === 'command') {
-    if (!command) return NextResponse.json({ error: 'Command is required.' }, { status: 400 });
-    await daemonPost(server.node.address, server.node.port, server.node.key, '/container/command', {
-      id: server.UUID,
-      command,
-    });
-    return NextResponse.json({ success: true });
-  }
+    if (action === 'command') {
+      if (!command) return NextResponse.json({ error: 'Command is required.' }, { status: 400 });
+      try {
+        await daemonPost(server.node.address, server.node.port, server.node.key, '/container/command', {
+          id: server.UUID,
+          command,
+        });
+        return NextResponse.json({ success: true });
+      } catch (error) {
+        return NextResponse.json({ error: getDaemonErrorMessage(error, 'Failed to send command.') }, { status: 502 });
+      }
+    }
 
-  if (action === 'stop') {
-    const base = await buildDaemonUrl(server.node.address, server.node.port);
-    void axios.post(
-      `${base}/container/stop`,
-      { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
-      { auth: { username: 'Airlink', password: server.node.key }, timeout: 5000 }
-    ).catch(() => {});
-    return NextResponse.json({ success: true });
-  }
-
-  if (action === 'restart') {
-    try {
+    if (action === 'stop') {
       const base = await buildDaemonUrl(server.node.address, server.node.port);
-      await axios.post(
+      void axios.post(
         `${base}/container/stop`,
         { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
         { auth: { username: 'Airlink', password: server.node.key }, timeout: 5000 }
-      );
-    } catch {}
+      ).catch(() => {});
+      return NextResponse.json({ success: true });
+    }
 
-    await new Promise(r => setTimeout(r, 2000));
+    if (action === 'restart' || action === 'start') {
+      if (action === 'start' && server.Suspended) {
+        return NextResponse.json({ error: 'Server is suspended.' }, { status: 403 });
+      }
 
-    const primaryPort = getPrimaryPortFromJson(server.Ports);
-    const envVars = buildEnvVariables(server.Variables);
-    envVars['SERVER_PORT'] = String(primaryPort ?? '');
-    envVars['SERVER_MEMORY'] = String(server.Memory);
-    envVars['SERVER_CPU'] = String(server.Cpu);
+      const base = await buildDaemonUrl(server.node.address, server.node.port);
+      const auth = { username: 'Airlink', password: server.node.key };
 
-    const restartImage = (() => {
-      try { return String(Object.values(JSON.parse(server.dockerImage ?? '{}'))[0] ?? '') }
-      catch { return server.dockerImage ?? '' }
-    })();
+      if (action === 'restart') {
+        try {
+          await axios.post(
+            `${base}/container/stop`,
+            { id: server.UUID, stopCmd: server.image?.stop || 'stop' },
+            { auth, timeout: 5000 }
+          );
+        } catch {}
 
-    const base = await buildDaemonUrl(server.node.address, server.node.port);
-    await axios.post(
-      `${base}/container/start`,
-      { id: server.UUID, image: restartImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
-      { auth: { username: 'Airlink', password: server.node.key }, timeout: 30000 }
-    );
-    return NextResponse.json({ success: true });
+        await new Promise(r => setTimeout(r, 2000));
+      }
+
+      const primaryPort = getPrimaryPortFromJson(server.Ports);
+      const primaryPortBinding = getPrimaryPortBindingFromJson(server.Ports);
+      const envVars = buildEnvVariables(server.Variables);
+      envVars['SERVER_PORT'] = String(primaryPort ?? '');
+      envVars['SERVER_MEMORY'] = String(server.Memory);
+      envVars['SERVER_CPU'] = String(server.Cpu);
+
+      const image = (() => {
+        try { return String(Object.values(JSON.parse(server.dockerImage ?? '{}'))[0] ?? '') }
+        catch { return server.dockerImage ?? '' }
+      })();
+
+      try {
+        await axios.post(
+          `${base}/container/start`,
+          { id: server.UUID, image, ports: primaryPortBinding ?? '', Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
+          { auth, timeout: 30000 }
+        );
+        return NextResponse.json({ success: true });
+      } catch (error) {
+        return NextResponse.json({ error: getDaemonErrorMessage(error, `Failed to ${action} server.`) }, { status: 502 });
+      }
+    }
+
+    return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
+  } catch (error) {
+    console.error('[api/server] Failed to process server action:', error);
+    return NextResponse.json({ error: 'Failed to process server action.' }, { status: 500 });
   }
-
-  if (action === 'start') {
-    if (server.Suspended) return NextResponse.json({ error: 'Server is suspended.' }, { status: 403 });
-
-    const primaryPort = getPrimaryPortFromJson(server.Ports);
-    const envVars = buildEnvVariables(server.Variables);
-    envVars['SERVER_PORT'] = String(primaryPort ?? '');
-    envVars['SERVER_MEMORY'] = String(server.Memory);
-    envVars['SERVER_CPU'] = String(server.Cpu);
-
-    const startImage = (() => {
-      try { return String(Object.values(JSON.parse(server.dockerImage ?? '{}'))[0] ?? '') }
-      catch { return server.dockerImage ?? '' }
-    })();
-
-    const base = await buildDaemonUrl(server.node.address, server.node.port);
-    await axios.post(
-      `${base}/container/start`,
-      { id: server.UUID, image: startImage, ports: primaryPort, Memory: server.Memory, Cpu: server.Cpu, env: envVars, StartCommand: server.StartCommand },
-      { auth: { username: 'Airlink', password: server.node.key }, timeout: 30000 }
-    );
-    return NextResponse.json({ success: true });
-  }
-
-  return NextResponse.json({ error: 'Unknown action.' }, { status: 400 });
 }

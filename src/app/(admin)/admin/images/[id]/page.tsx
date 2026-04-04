@@ -275,7 +275,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
             {/* General */}
             {tab === 'general' && (
-              <div className="space-y-5">
+              <div className="animate-fade-in-up space-y-5">
                 <div className={sectionClass}>
                   <h2 className={sectionHeadClass}>Basics</h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-5 py-5">
@@ -321,7 +321,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
             {/* Docker Images — visual key→value editor */}
             {tab === 'docker' && (
-              <div className={sectionClass}>
+              <div className={`${sectionClass} animate-fade-in-up`}>
                 <div className="flex items-center justify-between px-5 py-3.5 bg-neutral-100 dark:bg-white/5 rounded-t-xl border-b border-neutral-200 dark:border-white/5">
                   <h2 className={`${sectionHeadClass} px-0 py-0 bg-transparent border-0 rounded-none`}>Docker Images</h2>
                   <button type="button" onClick={addDockerEntry}
@@ -360,7 +360,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
             {/* Variables — visual card editor */}
             {tab === 'variables' && (
-              <div className={sectionClass}>
+              <div className={`${sectionClass} animate-fade-in-up`}>
                 <div className="flex items-center justify-between px-5 py-3.5 bg-neutral-100 dark:bg-white/5 rounded-t-xl border-b border-neutral-200 dark:border-white/5">
                   <h2 className={`${sectionHeadClass} px-0 py-0 bg-transparent border-0 rounded-none`}>Egg Variables</h2>
                   <button type="button" onClick={addVariable}
@@ -444,7 +444,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
             {/* Install Script */}
             {tab === 'install' && (
-              <div className={sectionClass}>
+              <div className={`${sectionClass} animate-fade-in-up`}>
                 <h2 className={sectionHeadClass}>Installation Script</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 px-5 py-5">
                   <div>
@@ -472,7 +472,7 @@ export default function AdminImageEditPage({ params }: { params: Promise<{ id: s
 
             {/* Raw JSON */}
             {tab === 'raw' && (
-              <div className={sectionClass}>
+              <div className={`${sectionClass} animate-fade-in-up`}>
                 <h2 className={sectionHeadClass}>Raw JSON</h2>
                 <div className="px-5 py-5">
                   <p className="text-xs text-neutral-500 mb-3">Edit the complete egg JSON directly. Saving here overwrites all tab values.</p>

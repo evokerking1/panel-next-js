@@ -52,14 +52,14 @@ export default function AdminUsersPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="panel-page panel-page-shell panel-stack">
 
-        <div className="sm:flex sm:items-center px-8 pt-4">
-          <FadeUp className="sm:flex-auto">
-            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Users</h1>
-            <p className="mt-1 tracking-tight text-sm text-neutral-500">Manage user accounts and permissions</p>
+        <div className="panel-toolbar">
+          <FadeUp className="panel-page-heading">
+            <h1 className="panel-page-title">Users</h1>
+            <p className="panel-page-subtitle">Manage user accounts and permissions</p>
           </FadeUp>
-          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <FadeUp delay={0.05}>
             <Link href="/admin/users/create"
               className="inline-flex items-center gap-1.5 border border-neutral-200 dark:border-neutral-700/40 rounded-xl bg-neutral-900 dark:bg-neutral-800 hover:bg-neutral-800 dark:hover:bg-neutral-700 text-neutral-100 px-3 py-2 text-sm font-medium transition">
               Create New User
@@ -68,13 +68,13 @@ export default function AdminUsersPage() {
         </div>
 
         <FadeUp delay={0.08}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 m-8">
-            <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl p-5 border border-neutral-200 dark:border-white/5">
+          <div className="panel-grid">
+            <div className="panel-stat-card">
               <h2 className="text-lg font-medium text-neutral-800 dark:text-white mb-2">Total Users</h2>
               <p className="text-4xl font-normal text-neutral-800 dark:text-white">{users.length}</p>
               <p className="text-sm text-neutral-400 mt-2">No users online</p>
             </div>
-            <div className="bg-neutral-50 dark:bg-neutral-800/20 rounded-xl p-5 border border-neutral-200 dark:border-white/5">
+            <div className="panel-stat-card">
               <h2 className="text-lg font-medium text-neutral-800 dark:text-white mb-2">Admins</h2>
               <p className="text-4xl font-normal text-neutral-800 dark:text-white">{adminCount}</p>
               <p className="text-sm text-neutral-400 mt-2">No admins online</p>
@@ -83,7 +83,7 @@ export default function AdminUsersPage() {
         </FadeUp>
 
         <FadeUp delay={0.12}>
-          <div className="overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40" id="userTable">
+          <div className="panel-table-shell overflow-x-auto shadow-sm" id="userTable">
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />

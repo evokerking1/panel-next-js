@@ -20,7 +20,8 @@ interface NodeData {
   address: string
   port: number
   allocatedPorts: string | null
-  servers: NodeServer[]
+  servers?: NodeServer[]
+  instances?: NodeServer[]
 }
 interface ImageData {
   id: number
@@ -70,7 +71,7 @@ function getAvailablePorts(node: NodeData): number[] {
   } catch {}
 
   const usedPorts = new Set<number>()
-  for (const srv of node.servers || []) {
+  for (const srv of node.instances || node.servers || []) {
     try {
       const ports = JSON.parse(srv.Ports || '[]')
       for (const p of ports) {
@@ -368,6 +369,11 @@ export default function AdminServerCreatePage() {
                         <option key={p} value={p}>{selectedNode?.address}:{p}</option>
                       ))}
                     </select>
+                  )}
+                  {availablePorts.length > 0 && (
+                    <p className="mt-1 text-xs text-neutral-500">
+                      Only ports not already assigned to servers on this node are shown.
+                    </p>
                   )}
                 </div>
                 <div className="bg-neutral-100 dark:bg-neutral-700/20 rounded-lg p-4 border border-neutral-300 dark:border-white/5 self-end mb-4">

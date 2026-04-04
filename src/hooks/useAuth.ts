@@ -43,7 +43,7 @@ export function useAuth(options?: { require?: boolean; adminOnly?: boolean }) {
         setLoading(false)
         if (options?.require) router.replace('/login')
       })
-  }, [])
+  }, [options?.adminOnly, options?.require, router])
 
   async function logout() {
     await fetch('/api/auth/logout', { method: 'POST' })

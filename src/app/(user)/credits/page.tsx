@@ -222,21 +222,32 @@ export default function CreditsPage() {
     <PanelLayout>
       <CreditsCanvas />
 
-      <div className="relative z-10 px-4 sm:px-8 md:px-12 pt-6 pb-12 space-y-8 max-w-2xl">
+      <div className="panel-page panel-page-shell relative z-10 space-y-8">
 
         <FadeUp>
-          <div>
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Credits</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">The people who build and maintain Airlink.</p>
+          <div className="panel-grid-wide items-start">
+            <div className="panel-page-heading">
+              <h1 className="panel-page-title">Credits</h1>
+              <p className="panel-page-subtitle">The people and links behind Airlink.</p>
+            </div>
+            <div className="panel-stat-card">
+              <p className="panel-stat-label">Project</p>
+              <p className="panel-stat-value">Airlink Panel</p>
+              <p className="panel-stat-subtle">Open source panel maintained by the Airlink contributors.</p>
+            </div>
           </div>
         </FadeUp>
 
-        {/* Project leads */}
+        <div className="panel-grid-wide items-start">
+        <div className="panel-stack">
         <FadeUp delay={0.05}>
-          <section>
+          <section className="panel-card">
+            <div className="panel-card-header">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
               Project leads
             </h2>
+            </div>
+            <div className="panel-card-body space-y-2">
             <div className="space-y-2">
               {LEADS.map(lead => (
                 <div
@@ -264,18 +275,19 @@ export default function CreditsPage() {
                 </div>
               ))}
             </div>
+            </div>
           </section>
         </FadeUp>
 
-        {/* Contributors */}
         <FadeUp delay={0.1}>
-          <section>
-            <div className="flex items-center justify-between mb-3">
+          <section className="panel-card">
+            <div className="panel-card-header flex items-center justify-between gap-3">
               <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
                 Contributors
               </h2>
               {cacheTs && <CacheLabel ts={cacheTs} />}
             </div>
+            <div className="panel-card-body">
 
             {loadingContribs ? (
               <div className="flex items-center gap-2 py-2">
@@ -285,7 +297,7 @@ export default function CreditsPage() {
             ) : nonLeadContribs.length === 0 ? (
               <p className="text-sm text-neutral-400">No other contributors found.</p>
             ) : (
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {nonLeadContribs.map(c => (
                   <a
                     key={c.login}
@@ -310,15 +322,20 @@ export default function CreditsPage() {
                 ))}
               </div>
             )}
+            </div>
           </section>
         </FadeUp>
+        </div>
 
-        {/* Links */}
+        <div className="panel-stack">
         <FadeUp delay={0.15}>
-          <section>
+          <section className="panel-card">
+            <div className="panel-card-header">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
               Links
             </h2>
+            </div>
+            <div className="panel-card-body space-y-2">
             <div className="space-y-2">
               {LINKS.map(link => (
                 <a
@@ -341,15 +358,18 @@ export default function CreditsPage() {
                 </a>
               ))}
             </div>
+            </div>
           </section>
         </FadeUp>
 
-        {/* License */}
         <FadeUp delay={0.2}>
-          <section>
+          <section className="panel-card">
+            <div className="panel-card-header">
             <h2 className="text-xs font-semibold uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-3">
               License
             </h2>
+            </div>
+            <div className="panel-card-body">
             <div className="rounded-xl bg-white/80 dark:bg-white/5 border border-neutral-200 dark:border-white/5 shadow-sm dark:shadow-none px-4 py-4">
               <p className="text-sm font-medium text-neutral-800 dark:text-white mb-1.5">MIT License</p>
               <p className="text-xs text-neutral-500 leading-relaxed">
@@ -364,8 +384,11 @@ export default function CreditsPage() {
                 View full license
               </a>
             </div>
+            </div>
           </section>
         </FadeUp>
+        </div>
+        </div>
 
       </div>
     </PanelLayout>

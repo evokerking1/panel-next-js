@@ -3,6 +3,17 @@ export interface PortMapping {
   primary?: boolean
 }
 
+function getPrimaryPortMapping(portsJson: string | null | undefined): PortMapping | undefined {
+  if (!portsJson) return undefined
+
+  try {
+    const ports = JSON.parse(portsJson) as PortMapping[]
+    return ports.find((port) => port?.primary) ?? ports[0]
+  } catch {
+    return undefined
+  }
+}
+
 function extractPortNumber(value: unknown): number | undefined {
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
@@ -26,13 +37,23 @@ function extractPortNumber(value: unknown): number | undefined {
 }
 
 export function getPrimaryPortFromJson(portsJson: string | null | undefined): number | undefined {
-  if (!portsJson) return undefined
+  return extractPortNumber(getPrimaryPortMapping(portsJson)?.Port)
+}
 
-  try {
-    const ports = JSON.parse(portsJson) as PortMapping[]
-    const primary = ports.find((port) => port?.primary) ?? ports[0]
-    return extractPortNumber(primary?.Port)
-  } catch {
+export function getPrimaryPortBindingFromJson(portsJson: string | null | undefined): string | undefined {
+  const rawPort = getPrimaryPortMapping(portsJson)?.Port
+  if (rawPort === undefined || rawPort === null) {
     return undefined
   }
+
+  if (typeof rawPort === 'number' && Number.isFinite(rawPort)) {
+    return String(rawPort)
+  }
+
+  if (typeof rawPort !== 'string') {
+    return undefined
+  }
+
+  const trimmed = rawPort.trim()
+  return trimmed || undefined
 }

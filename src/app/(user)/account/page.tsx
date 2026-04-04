@@ -179,13 +179,13 @@ export default function AccountPage() {
 
   return (
     <PanelLayout>
-      <div className="panel-page panel-stack">
+      <div className="panel-page panel-page-shell panel-stack">
 
         <FadeUp>
-          <div className="flex items-start justify-between gap-3 mb-2">
-            <div>
-              <h1 className="text-base font-medium text-neutral-800 dark:text-white">Account</h1>
-              <p className="text-xs text-neutral-500 mt-0.5">Manage your profile and preferences.</p>
+          <div className="panel-toolbar">
+            <div className="panel-page-heading">
+              <h1 className="panel-page-title">Account</h1>
+              <p className="panel-page-subtitle">Manage your profile and preferences.</p>
             </div>
             <Link
               href="/credits"
@@ -199,149 +199,125 @@ export default function AccountPage() {
 
         {/* Profile picture */}
         <FadeUp delay={0.04}>
-          <div className="panel-grid-wide">
-          <Section title="Profile picture">
-            <div className="flex items-center gap-4">
-              <img
-                src={avatarSrc}
-                alt="Avatar"
-                className="h-14 w-14 rounded-xl border border-neutral-200 dark:border-white/10 object-cover shrink-0"
-              />
-              <div className="flex flex-col gap-2">
-                <label
-                  htmlFor="avatar-input"
-                  className="cursor-pointer inline-block rounded-xl bg-neutral-100 dark:bg-neutral-700/30 border border-neutral-200 dark:border-neutral-600/30 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 transition active:scale-95 select-none"
-                >
-                  {uploadingAvatar ? 'Uploading…' : 'Choose image'}
-                </label>
-                <input
-                  id="avatar-input"
-                  ref={fileRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarChange}
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.65fr)_minmax(340px,0.9fr)]">
+          <Section title="Profile & account">
+            <div className="space-y-5">
+              <div className="flex items-center gap-4 rounded-xl border border-neutral-200 bg-neutral-100 p-4 dark:border-white/5 dark:bg-neutral-800/30">
+                <img
+                  src={avatarSrc}
+                  alt="Avatar"
+                  className="h-16 w-16 rounded-2xl border border-neutral-200 dark:border-white/10 object-cover shrink-0"
                 />
-                <p className="text-[10px] text-neutral-400">JPG, PNG, GIF or WebP — max 2 MB</p>
-                {fullUser.avatar && (
-                  <button
-                    onClick={removeAvatar}
-                    disabled={uploadingAvatar}
-                    className="text-xs text-red-500 text-left hover:text-red-400 transition"
-                  >
-                    Remove picture
-                  </button>
-                )}
-              </div>
-            </div>
-          </Section>
-          <Section title="Account details">
-            <form onSubmit={save} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Username</label>
-                <div className="flex gap-2">
+                <div className="min-w-0 flex flex-1 flex-col gap-2">
+                  <div>
+                    <p className="truncate text-sm font-semibold text-neutral-900 dark:text-white">{fullUser.username}</p>
+                    <p className="truncate text-xs text-neutral-500">{fullUser.email}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label
+                      htmlFor="avatar-input"
+                      className="cursor-pointer inline-block rounded-xl bg-white dark:bg-neutral-700/30 border border-neutral-200 dark:border-neutral-600/30 px-3 py-2 text-xs font-medium text-neutral-700 dark:text-neutral-300 transition active:scale-95 select-none"
+                    >
+                      {uploadingAvatar ? 'Uploading…' : 'Choose image'}
+                    </label>
+                    {fullUser.avatar && (
+                      <button
+                        onClick={removeAvatar}
+                        disabled={uploadingAvatar}
+                        className="rounded-xl border border-red-200 px-3 py-2 text-xs text-red-500 transition hover:bg-red-50 dark:border-red-500/20 dark:hover:bg-red-500/10"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                   <input
-                    className={inputClass}
-                    value={form.username}
-                    onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
-                    placeholder={fullUser.username}
+                    id="avatar-input"
+                    ref={fileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleAvatarChange}
                   />
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="shrink-0 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2.5 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
-                  >
-                    Update
-                  </button>
-                </div>
-                {usernameStatus && <p className="mt-1.5 text-xs text-neutral-400">{usernameStatus}</p>}
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Email</label>
-                <div className="flex gap-2">
-                  <input
-                    className={inputClass}
-                    type="email"
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    placeholder={fullUser.email}
-                  />
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="shrink-0 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2.5 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
-                  >
-                    Update
-                  </button>
+                  <p className="text-[10px] text-neutral-400">JPG, PNG, GIF or WebP, max 2 MB</p>
                 </div>
               </div>
 
-              <div className="rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 p-3">
-                <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Description</label>
-                <textarea
-                  rows={3}
-                  className={inputClass + ' resize-none'}
-                  value={form.description}
-                  onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-                  placeholder="No description set"
-                />
+              <form onSubmit={save} className="space-y-4">
+                <div className="panel-form-grid">
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Username</label>
+                    <input
+                      className={inputClass}
+                      value={form.username}
+                      onChange={e => setForm(f => ({ ...f, username: e.target.value }))}
+                      placeholder={fullUser.username}
+                    />
+                    {usernameStatus && <p className="mt-1.5 text-xs text-neutral-400">{usernameStatus}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Email</label>
+                    <input
+                      className={inputClass}
+                      type="email"
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      placeholder={fullUser.email}
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 p-3">
+                  <label className="block text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-1.5">Description</label>
+                  <textarea
+                    rows={3}
+                    className={inputClass + ' resize-none'}
+                    value={form.description}
+                    onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="No description set"
+                  />
+                </div>
+
+                <div className="rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 p-3 space-y-3">
+                  <p className="text-xs font-medium text-neutral-800 dark:text-white">Change password</p>
+                  <input
+                    className={inputClass}
+                    type="password"
+                    value={form.currentPassword}
+                    onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))}
+                    placeholder="Current password"
+                  />
+                  <div className="panel-form-grid">
+                    <input
+                      className={inputClass}
+                      type="password"
+                      value={form.newPassword}
+                      onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))}
+                      placeholder="New password"
+                      disabled={!form.currentPassword}
+                    />
+                    <input
+                      className={inputClass}
+                      type="password"
+                      value={form.confirmNewPassword}
+                      onChange={e => setForm(f => ({ ...f, confirmNewPassword: e.target.value }))}
+                      placeholder="Confirm new password"
+                      disabled={!form.currentPassword}
+                    />
+                  </div>
+                </div>
+
                 <button
                   type="submit"
                   disabled={saving}
-                  className="mt-2 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-3 py-2 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
+                  className="rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
                 >
-                  Update
+                  {saving ? 'Saving…' : 'Save changes'}
                 </button>
-              </div>
-
-              <div className="p-3 rounded-xl bg-neutral-100 dark:bg-neutral-700/20 border border-neutral-200 dark:border-white/5 space-y-3">
-                <p className="text-xs font-medium text-neutral-800 dark:text-white">Change password</p>
-                <input
-                  className={inputClass}
-                  type="password"
-                  value={form.currentPassword}
-                  onChange={e => setForm(f => ({ ...f, currentPassword: e.target.value }))}
-                  placeholder="Current password"
-                />
-                <input
-                  className={inputClass}
-                  type="password"
-                  value={form.newPassword}
-                  onChange={e => setForm(f => ({ ...f, newPassword: e.target.value }))}
-                  placeholder="New password"
-                  disabled={!form.currentPassword}
-                />
-                <input
-                  className={inputClass}
-                  type="password"
-                  value={form.confirmNewPassword}
-                  onChange={e => setForm(f => ({ ...f, confirmNewPassword: e.target.value }))}
-                  placeholder="Confirm new password"
-                  disabled={!form.currentPassword}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 px-4 py-2 text-sm font-medium disabled:opacity-60 transition hover:bg-neutral-700 dark:hover:bg-neutral-200"
-              >
-                {saving ? 'Saving…' : 'Save changes'}
-              </button>
-            </form>
-          </Section>
-          </div>
-        </FadeUp>
-
-        <FadeUp delay={0.1}>
-          <div className="panel-grid-wide">
-          <Section title="API tokens">
-            <p className="text-sm text-neutral-500">
-              Personal API token management is not exposed by the current Next.js backend yet.
-            </p>
+              </form>
+            </div>
           </Section>
 
+          <div className="panel-stack">
           <Section title="Login history">
             {fullUser.loginHistory.length === 0 ? (
               <p className="text-sm text-neutral-400 text-center py-4">No login history available.</p>
@@ -366,6 +342,20 @@ export default function AccountPage() {
               </div>
             )}
           </Section>
+
+          <Section title="Account info">
+            <div className="space-y-3 text-sm text-neutral-500">
+              <div className="rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 dark:border-white/5 dark:bg-neutral-800/30">
+                <p className="text-[10px] uppercase tracking-wider text-neutral-500">Role</p>
+                <p className="mt-1 font-medium text-neutral-900 dark:text-white">{fullUser.isAdmin ? 'Administrator' : 'User'}</p>
+              </div>
+              <div className="rounded-xl border border-neutral-200 bg-neutral-100 px-4 py-3 dark:border-white/5 dark:bg-neutral-800/30">
+                <p className="text-[10px] uppercase tracking-wider text-neutral-500">Recorded logins</p>
+                <p className="mt-1 font-medium text-neutral-900 dark:text-white">{fullUser.loginHistory.length}</p>
+              </div>
+            </div>
+          </Section>
+          </div>
           </div>
         </FadeUp>
 

@@ -187,11 +187,11 @@ export default function CreateServerPage() {
 
   return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 pt-5 pb-24 max-w-3xl">
-        <div className="mb-5 flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-semibold text-neutral-900 dark:text-white">Create a server</h1>
-            <p className="mt-0.5 text-xs text-neutral-500">
+      <div className="panel-page panel-page-shell panel-stack">
+        <div className="panel-toolbar">
+          <div className="panel-page-heading">
+            <h1 className="panel-page-title">Create a server</h1>
+            <p className="panel-page-subtitle">
               {currentCount} of {serverLimit} servers used
             </p>
           </div>
@@ -200,8 +200,9 @@ export default function CreateServerPage() {
           </Link>
         </div>
 
-        <div className="space-y-4">
-          <section className="overflow-hidden rounded-2xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800/20">
+        <div className="panel-grid-wide">
+          <div className="panel-stack">
+          <section className="panel-card">
             <div className="border-b border-neutral-100 px-4 py-3 dark:border-white/5">
               <p className="text-sm font-semibold text-neutral-800 dark:text-white">Details</p>
             </div>
@@ -231,11 +232,11 @@ export default function CreateServerPage() {
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-2xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800/20">
+          <section className="panel-card">
             <div className="border-b border-neutral-100 px-4 py-3 dark:border-white/5">
               <p className="text-sm font-semibold text-neutral-800 dark:text-white">Node & image</p>
             </div>
-            <div className="space-y-4 p-4">
+            <div className="panel-form-grid p-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-[0.04em] text-neutral-500">Node</label>
                 <div className="relative">
@@ -287,8 +288,10 @@ export default function CreateServerPage() {
               </div>
             </div>
           </section>
+          </div>
 
-          <section className="overflow-hidden rounded-2xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800/20">
+          <div className="panel-stack">
+          <section className="panel-card">
             <div className="border-b border-neutral-100 px-4 py-3 dark:border-white/5">
               <p className="text-sm font-semibold text-neutral-800 dark:text-white">Resources</p>
             </div>
@@ -335,6 +338,7 @@ export default function CreateServerPage() {
             {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
             {submitting ? 'Creating server' : 'Create server'}
           </button>
+          </div>
         </div>
       </div>
 

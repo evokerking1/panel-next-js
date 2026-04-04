@@ -247,7 +247,7 @@ export default function AdminAnalyticsPage() {
           ) : (
             <>
               {tab === 'servers' && data && (
-                <div className="space-y-6">
+                <div className="animate-fade-in-up space-y-6">
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard label="Total servers" value={fmt(data.servers.total)}
                       sub={data.servers.suspended > 0 ? `${data.servers.suspended} suspended` : 'none suspended'} />
@@ -292,7 +292,7 @@ export default function AdminAnalyticsPage() {
               )}
 
               {tab === 'nodes' && data && (
-                <div className="space-y-4">
+                <div className="animate-fade-in-up space-y-4">
                   <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
                     <StatCard label="Nodes" value={fmt(data.nodes.length)} />
                     <StatCard label="Online" value={fmt(data.nodes.filter(n => n.online).length)} valueClass="text-2xl font-semibold text-emerald-600 dark:text-emerald-400" />
@@ -337,7 +337,7 @@ export default function AdminAnalyticsPage() {
               )}
 
               {tab === 'activity' && data && (
-                <div className="space-y-6">
+                <div className="animate-fade-in-up space-y-6">
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard label="Users" value={fmt(data.activity.totalUsers)} sub={`${data.activity.adminCount} admin${data.activity.adminCount !== 1 ? 's' : ''}`} />
                     <StatCard label="Images installed" value={fmt(data.activity.totalImages)} sub="in library" />
@@ -368,7 +368,7 @@ export default function AdminAnalyticsPage() {
               )}
 
               {tab === 'playerstats' && (
-                <div>
+                <div className="animate-fade-in-up">
                   {psLoading && (
                     <div className="flex items-center gap-3 py-12 text-neutral-400">
                       <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />

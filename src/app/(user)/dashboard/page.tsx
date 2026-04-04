@@ -60,10 +60,10 @@ function StatusBadge({ status }: { status?: string }) {
 function ServerCard({ server, onDragStart }: { server: Server; onDragStart: (uuid: string, name: string, e: React.DragEvent) => void }) {
   const avatarSrc = `https://api.dicebear.com/9.x/thumbs/svg?seed=${encodeURIComponent(server.owner.username)}`
   return (
-    <div className="group relative bg-white dark:bg-neutral-800/20 rounded-xl border border-neutral-200 dark:border-white/5 shadow-sm p-4 hover:border-neutral-300 dark:hover:border-white/10 hover:shadow-md transition-all duration-150 cursor-grab active:cursor-grabbing"
+    <div className="group relative rounded-xl border border-neutral-200 bg-white p-3.5 shadow-sm transition-all duration-150 cursor-grab active:cursor-grabbing hover:border-neutral-300 hover:shadow-md dark:border-white/5 dark:bg-neutral-800/20 dark:hover:border-white/10"
       draggable onDragStart={e => onDragStart(server.UUID, server.name, e)}>
       <Link href={`/server/${server.UUID}`} className="block">
-        <div className="flex items-start justify-between mb-3">
+        <div className="mb-2.5 flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1 mr-3">
             <h3 className="text-sm font-medium text-neutral-900 dark:text-white truncate">{server.name}</h3>
             {server.description
@@ -72,15 +72,15 @@ function ServerCard({ server, onDragStart }: { server: Server; onDragStart: (uui
           </div>
           <StatusBadge status={server.status} />
         </div>
-        <div className="flex gap-3 mb-3">
+        <div className="mb-2.5 grid grid-cols-3 gap-2">
           {[
             { label: 'RAM', value: `${server.ramUsage ?? '0'}%` },
             { label: 'CPU', value: `${server.cpuUsage ?? '0'}%` },
             { label: 'Used', value: server.ramUsed ?? '0MB' },
           ].map(stat => (
-            <div key={stat.label} className="flex-1 bg-neutral-100 dark:bg-neutral-700/30 rounded-lg px-3 py-2">
+            <div key={stat.label} className="rounded-lg bg-neutral-100 px-2.5 py-2 dark:bg-neutral-700/30">
               <p className="text-[10px] text-neutral-500 dark:text-neutral-400 mb-0.5">{stat.label}</p>
-              <p className="text-sm font-medium text-neutral-700 dark:text-neutral-300">{stat.value}</p>
+              <p className="truncate text-[13px] font-medium text-neutral-700 dark:text-neutral-300">{stat.value}</p>
             </div>
           ))}
         </div>
@@ -257,15 +257,15 @@ function DashboardInner() {
           <div className="skeleton h-5 w-24 mb-2" />
           <div className="skeleton h-4 w-56" />
         </div>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
           {[0, 1, 2].map(index => (
-            <div key={index} className="rounded-xl border border-neutral-200 dark:border-white/5 bg-white dark:bg-neutral-800/20 p-4">
+            <div key={index} className="rounded-xl border border-neutral-200 bg-white p-3.5 dark:border-white/5 dark:bg-neutral-800/20">
               <div className="skeleton h-4 w-32 mb-2" />
               <div className="skeleton h-3 w-24 mb-4" />
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="skeleton h-14 w-full" />
-                <div className="skeleton h-14 w-full" />
-                <div className="skeleton h-14 w-full" />
+              <div className="mb-3 grid grid-cols-3 gap-2">
+                <div className="skeleton h-12 w-full" />
+                <div className="skeleton h-12 w-full" />
+                <div className="skeleton h-12 w-full" />
               </div>
               <div className="skeleton h-4 w-full" />
             </div>
@@ -276,13 +276,13 @@ function DashboardInner() {
   }
 
   return (
-    <div className="animate-fade-in-up px-4 py-5 lg:px-12 lg:pt-6 lg:pb-8">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-3">
-        <div>
-          <h1 className="text-base font-medium text-neutral-800 dark:text-white">Servers</h1>
-          <p className="text-xs text-neutral-500 mt-0.5">Manage and monitor your servers</p>
+    <div className="panel-page panel-page-shell panel-stack animate-fade-in-up">
+      <div className="panel-toolbar">
+        <div className="panel-page-heading">
+          <h1 className="panel-page-title">Servers</h1>
+          <p className="panel-page-subtitle">Manage and monitor your servers</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        <div className="panel-toolbar-actions">
           {canCreateServer && (
             <Link href="/create-server" className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-neutral-900 dark:bg-white text-white dark:text-neutral-900 text-xs font-medium transition active:scale-95 transition-transform duration-100">
               <Plus className="h-4 w-4" />
@@ -321,7 +321,7 @@ function DashboardInner() {
       )}
 
       {servers.length === 0 && folders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center mt-32 text-center">
+        <div className="panel-note flex min-h-[45vh] flex-col items-center justify-center text-center">
           <Box className="h-20 w-20 text-neutral-300 dark:text-neutral-600 mb-4" />
           <h2 className="text-base font-medium text-neutral-800 dark:text-white">No servers yet</h2>
           <p className="text-sm text-neutral-500 mt-1">
@@ -335,12 +335,12 @@ function DashboardInner() {
       ) : (
         <>
           {folders.length > 0 && (
-            <div className="mb-8">
+            <div className="panel-stack">
               <div className="flex items-center justify-between mb-2.5">
                 <p className="text-[11px] font-medium text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Folders</p>
                 <button onClick={() => setNewFolderOpen(true)} className="text-xs text-neutral-500 active:scale-95 transition-transform duration-100">+ New folder</button>
               </div>
-              <AnimatedList className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
+              <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
                 {folders.map((f, index) => (
                   <div key={f.id} className="animate-fade-in-up" style={{ animationDelay: `${Math.min(index * 0.04, 0.24)}s` }}>
                     <FolderCard folder={f} onDrop={handleDropOnFolder} onClick={setActiveFolder} />
@@ -355,7 +355,7 @@ function DashboardInner() {
 
           <LayoutGroup>
           {view === 'grid' ? (
-            <AnimatedList className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
+            <AnimatedList className="grid grid-cols-1 xl:grid-cols-2 2xl:grid-cols-3 gap-4 mb-6">
               {serversNotInFolder.map((s, index) => (
                 <div key={s.UUID} className="animate-fade-in-up" style={{ animationDelay: `${Math.min(index * 0.04, 0.24)}s` }}>
                   <ServerCard server={s} onDragStart={handleDragStartWithGhost} />
@@ -363,7 +363,7 @@ function DashboardInner() {
               ))}
             </AnimatedList>
           ) : (
-            <div className="rounded-xl border border-neutral-200 dark:border-white/5 overflow-x-auto shadow-sm mb-6">
+            <div className="panel-table-shell overflow-x-auto mb-6">
               <table className="min-w-full divide-y divide-neutral-200 dark:divide-white/5">
                 <thead className="bg-neutral-50 dark:bg-neutral-800/20">
                   <tr>{['Server', 'Status', 'Owner', 'RAM', 'CPU'].map(h => (

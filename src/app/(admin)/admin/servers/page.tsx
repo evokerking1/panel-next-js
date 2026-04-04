@@ -86,14 +86,14 @@ export default function AdminServersPage() {
 
   return (
     <PanelLayout>
-      <div className="flex-1 p-6 overflow-y-auto">
+      <div className="panel-page panel-page-shell panel-stack">
 
-        <div className="sm:flex sm:items-center px-8 pt-4">
-          <FadeUp className="sm:flex-auto">
-            <h1 className="text-base font-medium leading-6 text-neutral-800 dark:text-white">Servers</h1>
-            <p className="mt-1 tracking-tight text-sm text-neutral-500">Manage all servers across nodes</p>
+        <div className="panel-toolbar">
+          <FadeUp className="panel-page-heading">
+            <h1 className="panel-page-title">Servers</h1>
+            <p className="panel-page-subtitle">Manage all servers across nodes</p>
           </FadeUp>
-          <FadeUp delay={0.05} className="mt-4 sm:ml-16 sm:mt-0 sm:flex-none">
+          <FadeUp delay={0.05}>
             <button onClick={() => router.push('/admin/servers/create')} type="button"
               className="border border-neutral-800/20 dark:border-white/10 block rounded-xl bg-white dark:bg-white/5 hover:bg-neutral-100 dark:hover:bg-white/10 text-neutral-800 dark:text-white px-3 py-2 text-center text-sm font-medium shadow-sm transition">
               Create New Server
@@ -103,7 +103,7 @@ export default function AdminServersPage() {
 
         {selected.size > 0 && (
           <FadeUp delay={0.02}>
-            <div className="mx-8 mt-4 pb-0.5">
+            <div className="pb-0.5">
               <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-neutral-50 dark:bg-neutral-800/60 border border-neutral-200 dark:border-neutral-700/40">
                 <span className="text-sm font-medium text-neutral-600 dark:text-neutral-300 mr-1">{selected.size} selected</span>
                 <div className="h-4 w-px bg-neutral-200 dark:bg-neutral-700 mx-1" />
@@ -118,7 +118,7 @@ export default function AdminServersPage() {
         )}
 
         <FadeUp delay={0.1}>
-          <div className="overflow-x-auto shadow-sm rounded-xl m-8 border border-neutral-200 dark:border-neutral-800/40">
+          <div className="panel-table-shell overflow-x-auto shadow-sm">
             {loading ? (
               <div className="flex items-center justify-center h-32">
                 <Loader2 className="animate-spin h-5 w-5 text-neutral-400" />

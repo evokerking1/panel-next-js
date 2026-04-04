@@ -91,8 +91,45 @@ input[type='checkbox']:not(.sr-only):focus-visible {
   padding-bottom: 2rem;
 }
 
+.panel-page-shell {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto;
+}
+
 .panel-page-header {
   padding: 0 0 0.75rem;
+}
+
+.panel-page-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.panel-page-title {
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  color: rgb(23 23 23);
+}
+
+.panel-page-subtitle {
+  font-size: 0.8125rem;
+  line-height: 1.2rem;
+  color: rgb(115 115 115);
+}
+
+.panel-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.panel-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 .panel-stack {
@@ -109,6 +146,22 @@ input[type='checkbox']:not(.sr-only):focus-visible {
 .panel-grid-wide {
   display: grid;
   gap: 1rem;
+}
+
+.panel-grid-thirds {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel-form-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.panel-stat-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(1, minmax(0, 1fr));
 }
 
 .panel-card {
@@ -139,6 +192,57 @@ input[type='checkbox']:not(.sr-only):focus-visible {
   gap: 0.5rem;
 }
 
+.panel-stat-card {
+  border-radius: 1rem;
+  border: 1px solid rgb(229 229 229);
+  background: rgb(250 250 250);
+  padding: 1rem;
+}
+
+.panel-stat-label {
+  font-size: 0.625rem;
+  line-height: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(115 115 115);
+}
+
+.panel-stat-value {
+  margin-top: 0.35rem;
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 600;
+  color: rgb(23 23 23);
+}
+
+.panel-stat-subtle {
+  margin-top: 0.45rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: rgb(115 115 115);
+}
+
+.panel-table-shell {
+  border-radius: 1rem;
+  border: 1px solid rgb(229 229 229);
+  background: rgb(255 255 255);
+  overflow: visible;
+}
+
+.panel-list-shell {
+  border-radius: 1rem;
+  border: 1px solid rgb(229 229 229);
+  background: rgb(250 250 250);
+}
+
+.panel-note {
+  border-radius: 1rem;
+  border: 1px solid rgb(229 229 229);
+  background: rgb(250 250 250);
+  padding: 0.875rem 1rem;
+}
+
 .panel-overlay-frame {
   position: fixed;
   top: var(--mobile-topbar-height);
@@ -158,6 +262,14 @@ input[type='checkbox']:not(.sr-only):focus-visible {
   background: rgba(38, 38, 38, 0.2);
 }
 
+.dark .panel-page-title {
+  color: rgb(255 255 255);
+}
+
+.dark .panel-page-subtitle {
+  color: rgb(163 163 163);
+}
+
 .dark .panel-card-header {
   border-bottom-color: rgba(255, 255, 255, 0.06);
 }
@@ -165,6 +277,31 @@ input[type='checkbox']:not(.sr-only):focus-visible {
 .dark .panel-card-footer {
   border-top-color: rgba(255, 255, 255, 0.06);
   background: rgba(38, 38, 38, 0.45);
+}
+
+.dark .panel-stat-card {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(38, 38, 38, 0.2);
+}
+
+.dark .panel-stat-label,
+.dark .panel-stat-subtle {
+  color: rgb(163 163 163);
+}
+
+.dark .panel-stat-value {
+  color: rgb(255 255 255);
+}
+
+.dark .panel-table-shell {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(38, 38, 38, 0.18);
+}
+
+.dark .panel-list-shell,
+.dark .panel-note {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(38, 38, 38, 0.2);
 }
 
 .auth-shell {
@@ -191,6 +328,18 @@ input[type='checkbox']:not(.sr-only):focus-visible {
     align-items: start;
   }
 
+  .panel-grid-thirds {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .panel-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .panel-stat-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .panel-info-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -200,6 +349,12 @@ input[type='checkbox']:not(.sr-only):focus-visible {
     right: 0;
     bottom: 0;
     left: var(--desktop-sidebar-width);
+  }
+
+  .panel-toolbar {
+    align-items: flex-start;
+    justify-content: space-between;
+    flex-direction: row;
   }
 }
 
@@ -227,6 +382,15 @@ input[type='checkbox']:not(.sr-only):focus-visible {
   animation: fadeIn 0.18s ease both;
 }
 
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.18s ease both;
+}
+
 @keyframes modalIn {
   from {
     opacity: 0;
@@ -240,6 +404,21 @@ input[type='checkbox']:not(.sr-only):focus-visible {
 
 .animate-modal-in {
   animation: modalIn 0.2s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+@keyframes modalOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+}
+
+.animate-modal-out {
+  animation: modalOut 0.18s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 @keyframes dropdownIn {
@@ -265,21 +444,21 @@ input[type='checkbox']:not(.sr-only):focus-visible {
 .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(0, 0, 0, 0.06) 25%,
-    rgba(0, 0, 0, 0.1) 50%,
-    rgba(0, 0, 0, 0.06) 75%
+    rgba(0, 0, 0, 0.04) 25%,
+    rgba(0, 0, 0, 0.075) 50%,
+    rgba(0, 0, 0, 0.04) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.4s ease infinite;
+  animation: shimmer 1.9s ease infinite;
   border-radius: 0.5rem;
 }
 
 .dark .skeleton {
   background: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0.04) 25%,
-    rgba(255, 255, 255, 0.08) 50%,
-    rgba(255, 255, 255, 0.04) 75%
+    rgba(255, 255, 255, 0.035) 25%,
+    rgba(255, 255, 255, 0.065) 50%,
+    rgba(255, 255, 255, 0.035) 75%
   );
   background-size: 200% 100%;
 }

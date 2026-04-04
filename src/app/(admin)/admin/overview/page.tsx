@@ -63,14 +63,14 @@ export default function AdminOverviewPage() {
 
   const latencyPct = apiLatency ? Math.min((apiLatency / 500) * 100, 100) : 0
 
-  return (
+    return (
     <PanelLayout>
-      <div className="px-4 sm:px-8 md:px-12 pt-6 pb-8">
+      <div className="panel-page panel-page-shell panel-stack">
 
         <FadeUp>
-          <div className="mb-6">
-            <h1 className="text-base font-medium text-neutral-800 dark:text-white">Overview</h1>
-            <p className="text-sm text-neutral-500 mt-0.5">Panel statistics and system information</p>
+          <div className="panel-page-heading">
+            <h1 className="panel-page-title">Overview</h1>
+            <p className="panel-page-subtitle">Panel statistics and system information</p>
           </div>
         </FadeUp>
 
@@ -81,24 +81,25 @@ export default function AdminOverviewPage() {
         ) : data ? (
           <>
             <FadeUp delay={0.05}>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <div className="panel-stat-grid">
                 {[
                   { label: 'Users', value: data.userCount, sub: 'Registered' },
                   { label: 'Servers', value: data.instanceCount, sub: 'Active instances' },
                   { label: 'Nodes', value: data.nodeCount, sub: 'Connected nodes' },
                   { label: 'Images', value: data.imageCount, sub: 'Available images' },
                 ].map(stat => (
-                  <div key={stat.label} className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 px-4 py-4">
-                    <p className="text-[10px] text-neutral-500 uppercase tracking-wider mb-1">{stat.label}</p>
-                    <p className="text-2xl font-semibold text-neutral-800 dark:text-white">{stat.value}</p>
-                    <p className="text-xs text-neutral-500 mt-1">{stat.sub}</p>
+                  <div key={stat.label} className="panel-stat-card">
+                    <p className="panel-stat-label">{stat.label}</p>
+                    <p className="panel-stat-value">{stat.value}</p>
+                    <p className="panel-stat-subtle">{stat.sub}</p>
                   </div>
                 ))}
               </div>
             </FadeUp>
 
             <FadeUp delay={0.1}>
-              <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 p-5 mb-6">
+              <div className="panel-card">
+                <div className="panel-card-body space-y-5">
                 <div className="flex items-center justify-between mb-5">
                   <div className="flex items-center gap-3">
                     <img src="/assets/airlink_logo.png" className="h-10 w-10 rounded-xl shrink-0" alt="Airlink" />
@@ -121,7 +122,7 @@ export default function AdminOverviewPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="panel-grid-wide">
                   <div className="rounded-xl bg-neutral-100 dark:bg-neutral-800/40 border border-neutral-200 dark:border-white/5 p-4">
                     <p className="text-xs font-medium text-neutral-600 dark:text-neutral-400 mb-3">API Response Time</p>
                     <div className="flex items-center justify-between mb-2">
@@ -161,12 +162,13 @@ export default function AdminOverviewPage() {
                     )}
                   </div>
                 </div>
+                </div>
               </div>
             </FadeUp>
 
             <FadeUp delay={0.12}>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-                <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 overflow-hidden">
+              <div className="panel-grid-wide">
+                <div className="panel-card">
                   <div className="px-5 py-3.5 border-b border-neutral-200 dark:border-white/5">
                     <p className="text-sm font-medium text-neutral-800 dark:text-white">Node Status</p>
                   </div>
@@ -188,7 +190,7 @@ export default function AdminOverviewPage() {
                   </div>
                 </div>
 
-                <div className="rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 overflow-hidden">
+                <div className="panel-card">
                   <div className="px-5 py-3.5 border-b border-neutral-200 dark:border-white/5">
                     <p className="text-sm font-medium text-neutral-800 dark:text-white">Recent Activity</p>
                   </div>
@@ -207,7 +209,7 @@ export default function AdminOverviewPage() {
             </FadeUp>
 
             <FadeUp delay={0.15}>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="panel-stat-grid">
                 {[
                   { href: 'https://discord.gg/BybfXms7JZ', label: 'Discord', sub: 'Community support and discussions', icon: <ExternalLink className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" /> },
                   { href: 'https://airlinklabs.xyz/', label: 'Docs', sub: 'Usage and configuration guides', icon: <BookOpen className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" /> },
@@ -215,7 +217,7 @@ export default function AdminOverviewPage() {
                   { href: 'https://discord.gg/BybfXms7JZ', label: 'Support', sub: 'Get help from the team', icon: <HelpCircle className="w-4 h-4 text-neutral-500 dark:text-neutral-400 shrink-0" /> },
                 ].map(link => (
                   <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer"
-                    className="group rounded-xl bg-neutral-50 dark:bg-neutral-800/20 border border-neutral-200 dark:border-white/5 p-4 hover:border-neutral-300 dark:hover:border-white/10 transition-colors">
+                    className="group panel-stat-card hover:border-neutral-300 dark:hover:border-white/10 transition-colors">
                     <div className="flex items-center gap-2 mb-2">
                       {link.icon}
                       <p className="text-sm font-medium text-neutral-700 dark:text-neutral-200">{link.label}</p>

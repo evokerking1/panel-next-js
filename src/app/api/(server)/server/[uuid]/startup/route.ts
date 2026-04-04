@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { getSessionFromRequest } from '@/lib/session/index';
 import { buildDaemonUrl } from '@/lib/daemon';
-import { getPrimaryPortFromJson } from '@/lib/server/server-ports';
+import { getPrimaryPortBindingFromJson, getPrimaryPortFromJson } from '@/lib/server/server-ports';
 import axios from 'axios';
 
 async function getServerAndUser(req: NextRequest, uuid: string) {
@@ -59,10 +59,11 @@ async function restartIfRunning(
     if (!data?.running) return;
     await axios.post(`${base}/container/stop`, { id: server.UUID, stopCmd: server.image?.stop || 'stop' }, { auth, timeout: 8000 });
     await new Promise(r => setTimeout(r, 2000));
-    const ports = getPrimaryPortFromJson(server.Ports);
+    const portNumber = getPrimaryPortFromJson(server.Ports);
+    const ports = getPrimaryPortBindingFromJson(server.Ports);
     const vars = newVariables ?? server.Variables;
     const env = buildEnvVariables(vars);
-    env['SERVER_PORT'] = String(ports ?? '');
+    env['SERVER_PORT'] = String(portNumber ?? '');
     env['SERVER_MEMORY'] = String(server.Memory);
     env['SERVER_CPU'] = String(server.Cpu);
     await axios.post(`${base}/container/start`, {
