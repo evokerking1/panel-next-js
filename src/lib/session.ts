@@ -1,7 +1,7 @@
 import { getIronSession, IronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
-import { getSessionSecret } from './session-secret';
+import { sessionOptions } from './session-options';
 
 export interface SessionUser {
   id: number;
@@ -15,22 +15,6 @@ export interface SessionUser {
 export interface SessionData {
   user?: SessionUser;
 }
-
-const sessionPassword = (() => {
-  if (typeof window !== 'undefined') return 'placeholder';
-  return getSessionSecret();
-})();
-
-const sessionOptions = {
-  password: sessionPassword,
-  cookieName: 'airlink_session',
-  cookieOptions: {
-    secure: process.env.NODE_ENV === 'production',
-    httpOnly: true,
-    sameSite: 'strict' as const,
-    maxAge: 60 * 60 * 72,
-  },
-};
 
 export async function getSession(): Promise<IronSession<SessionData>> {
   const cookieStore = await cookies();

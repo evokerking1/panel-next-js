@@ -34,20 +34,20 @@ export default function RegisterPage() {
 
   useEffect(() => {
     requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => {
-        if (data.user) {
-          router.replace('/dashboard')
-          return
-        }
-        if (data.userCount > 0) {
-          router.replace('/login')
-          return
-        }
-      })
-      .catch(() => {})
-    fetch('/api/public/settings').then(r => r.json()).then(d => { if (d) setSettings(d) }).catch(() => {})
+    Promise.all([
+      fetch('/api/auth/me').then(r => r.json()),
+      fetch('/api/public/settings').then(r => r.json()),
+    ]).then(([auth, cfg]) => {
+      if (auth.user) {
+        router.replace('/dashboard')
+        return
+      }
+      if (auth.userCount > 0 && !cfg.allowRegistration) {
+        router.replace('/login')
+        return
+      }
+      if (cfg) setSettings(cfg)
+    }).catch(() => {})
   }, [])
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {

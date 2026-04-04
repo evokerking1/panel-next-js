@@ -65,7 +65,7 @@ function LoginForm() {
         setLoading(false)
         return
       }
-      router.push('/')
+      router.push('/dashboard')
     } catch {
       setError('Network error. Please try again.')
       setLoading(false)

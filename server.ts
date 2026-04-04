@@ -1,3 +1,4 @@
+import { ensureEnvLoaded } from './src/lib/env';
 import { createServer } from 'http';
 import next from 'next';
 import { WebSocketServer, WebSocket } from 'ws';
@@ -5,22 +6,14 @@ import { getIronSession } from 'iron-session';
 import { IncomingMessage, ServerResponse } from 'http';
 import { installDaemonRequestInterceptor, daemonScheme } from './src/lib/daemon';
 import { normalizeHost } from './src/lib/network-address';
-import { getSessionSecret } from './src/lib/session-secret';
+import { sessionOptions } from './src/lib/session-options';
 
+ensureEnvLoaded();
 installDaemonRequestInterceptor();
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOST || '0.0.0.0';
 const port = parseInt(process.env.PORT || '3000', 10);
-
-const sessionOptions = {
-  password: getSessionSecret(),
-  cookieName: 'airlink_session',
-  cookieOptions: {
-    secure: !dev,
-    httpOnly: true,
-  },
-};
 
 async function getSessionUser(req: IncomingMessage) {
   try {
@@ -125,20 +118,10 @@ async function startServer() {
     const protocol = req.headers['x-forwarded-proto'] === 'https' ? 'https' : 'http';
     const requestUrl = new URL(req.url || '/', `${protocol}://${host}`);
     const parsedUrl = {
-      auth: '',
-      hash: requestUrl.hash,
-      host: requestUrl.host,
-      hostname: requestUrl.hostname,
-      href: requestUrl.href,
-      path: `${requestUrl.pathname}${requestUrl.search}`,
       pathname: requestUrl.pathname,
-      port: requestUrl.port,
-      protocol: requestUrl.protocol,
       query: Object.fromEntries(requestUrl.searchParams),
-      search: requestUrl.search,
-      slashes: true,
     };
-    handle(req, res, parsedUrl);
+    handle(req, res, parsedUrl as Parameters<typeof handle>[2]);
   });
 
   const wss = new WebSocketServer({ noServer: true });

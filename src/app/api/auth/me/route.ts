@@ -1,10 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getSessionFromRequest } from '@/lib/session';
+import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/session';
 import prisma from '@/lib/prisma';
 
-export async function GET(req: NextRequest) {
-  const res = NextResponse.next();
-  const session = await getSessionFromRequest(req, res);
+export async function GET() {
+  const session = await getSession();
 
   try {
     const userCount = await prisma.users.count();

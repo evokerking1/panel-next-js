@@ -1,20 +1,12 @@
-import { randomBytes } from 'crypto';
+import { ensureEnvLoaded } from './env';
 
-declare global {
-  // eslint-disable-next-line no-var
-  var __airlinkSessionSecret: string | undefined;
-}
+ensureEnvLoaded();
 
-const sessionSecret =
-  process.env.SESSION_SECRET ||
-  globalThis.__airlinkSessionSecret ||
-  randomBytes(32).toString('hex');
-
-if (!process.env.SESSION_SECRET) {
-  globalThis.__airlinkSessionSecret = sessionSecret;
-  process.env.SESSION_SECRET = sessionSecret;
-}
+const sessionSecret = process.env.SESSION_SECRET;
 
 export function getSessionSecret() {
+  if (!sessionSecret) {
+    throw new Error('SESSION_SECRET could not be loaded or generated.');
+  }
   return sessionSecret;
 }
