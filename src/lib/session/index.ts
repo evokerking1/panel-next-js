@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 import { sessionOptions } from './session-options';
 
-export interface SessionUser {
+interface SessionUser {
   id: number;
   email: string;
   username: string;
@@ -12,7 +12,7 @@ export interface SessionUser {
   avatar?: string | null;
 }
 
-export interface SessionData {
+interface SessionData {
   user?: SessionUser;
 }
 
@@ -28,7 +28,7 @@ export async function getSessionFromRequest(
   return getIronSession<SessionData>(req, res, sessionOptions);
 }
 
-export async function requireAuth(adminOnly = false): Promise<SessionUser | null> {
+async function requireAuth(adminOnly = false): Promise<SessionUser | null> {
   const session = await getSession();
   if (!session.user) return null;
   if (adminOnly && !session.user.isAdmin) return null;

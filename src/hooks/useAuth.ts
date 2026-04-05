@@ -2,51 +2,36 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { AuthOptions, AuthUser, fetchCurrentUser, logoutUser, needsRedirect } from './auth-client'
 
-export interface AuthUser {
-  id: number
-  email: string
-  username: string
-  isAdmin: boolean
-  description: string
-  avatar?: string | null
-}
-
-export function useAuth(options?: { require?: boolean; adminOnly?: boolean }) {
+export function useAuth(options?: AuthOptions) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [loading, setLoading] = useState(true)
   const router = useRouter()
 
   useEffect(() => {
-    fetch('/api/auth/me')
-      .then(r => r.json())
-      .then(data => {
+    async function loadAuth() {
+      try {
+        const data = await fetchCurrentUser()
         setUser(data.user ?? null)
-        if (options?.require && !data.user) {
-          if (data.userCount === 0) {
-            router.replace('/register')
-          } else {
-            router.replace('/login')
-          }
+        const redirectPath = needsRedirect(options, data)
+        if (redirectPath) {
+          router.replace(redirectPath)
+        } else {
           setLoading(false)
-          return
         }
-        if (options?.adminOnly && data.user && !data.user.isAdmin) {
-          router.replace('/dashboard')
-          setLoading(false)
-          return
-        }
-        setLoading(false)
-      })
-      .catch(() => {
+      } catch {
         setUser(null)
         setLoading(false)
         if (options?.require) router.replace('/login')
-      })
+      }
+    }
+
+    void loadAuth()
   }, [options?.adminOnly, options?.require, router])
 
   async function logout() {
-    await fetch('/api/auth/logout', { method: 'POST' })
+    await logoutUser()
     router.push('/login')
   }
 

@@ -9,7 +9,7 @@ const ADDONS_REPO_NAME = 'addons'
 const GITHUB_API_BASE = `https://api.github.com/repos/${ADDONS_REPO_OWNER}/${ADDONS_REPO_NAME}`
 const ADDONS_RAW_BASE = `https://raw.githubusercontent.com/${ADDONS_REPO_OWNER}/${ADDONS_REPO_NAME}/main`
 
-export const ADDONS_DIR = path.resolve(process.cwd(), 'storage', 'addons')
+const ADDONS_DIR = path.resolve(process.cwd(), 'storage', 'addons')
 
 interface InstallManifest {
   repo?: string
@@ -17,7 +17,7 @@ interface InstallManifest {
   note?: string
 }
 
-export interface AddonStoreEntry {
+interface AddonStoreEntry {
   id: string
   name: string
   version: string
@@ -57,7 +57,7 @@ async function fetchJson<T>(url: string): Promise<T | null> {
   }
 }
 
-export async function fetchAddonStoreList(): Promise<AddonStoreEntry[]> {
+async function fetchAddonStoreList(): Promise<AddonStoreEntry[]> {
   const contents = await fetchJson<Array<{ name: string; type: string }>>(`${GITHUB_API_BASE}/contents`)
   if (!contents) {
     throw new Error('Failed to fetch addon list from GitHub')

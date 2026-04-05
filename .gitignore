@@ -5,3 +5,4 @@ storage
 public/uploads
 prisma/dev.db
 tsconfig.tsbuildinfo
+*fallow*

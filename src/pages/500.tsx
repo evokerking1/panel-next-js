@@ -1,4 +1,4 @@
-import ErrorScreen from '@/components/ui/ErrorScreen'
+import ErrorScreen from '@/components/ui/error-screen'
 
 export default function Custom500Page() {
   return (

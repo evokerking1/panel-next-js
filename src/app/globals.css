@@ -1,5 +1,5 @@
 @import url('https://api.fontshare.com/v2/css?f[]=general-sans@500,300,600,400,700&display=swap');
-@import '@xterm/xterm/css/xterm.css';
+@import '../../node_modules/@xterm/xterm/css/xterm.css';
 
 @tailwind base;
 @tailwind components;

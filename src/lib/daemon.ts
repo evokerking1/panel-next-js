@@ -28,14 +28,14 @@ export async function daemonScheme(): Promise<'http' | 'https'> {
   return cachedScheme;
 }
 
-export function daemonSchemeSync(): 'http' | 'https' {
+function daemonSchemeSync(): 'http' | 'https' {
   if (Date.now() - schemeCachedAt > SCHEME_CACHE_TTL_MS) {
     void refreshSchemeCache();
   }
   return cachedScheme;
 }
 
-export function daemonUrlSync(address: string, port: number): string {
+function daemonUrlSync(address: string, port: number): string {
   return `${daemonSchemeSync()}://${normalizeHost(address)}:${port}`;
 }
 
@@ -169,5 +169,3 @@ export function getDaemonErrorMessage(error: unknown, fallback = 'Daemon request
 
   return error.message || fallback;
 }
-
-export { SIGNATURE_WINDOW_S };
